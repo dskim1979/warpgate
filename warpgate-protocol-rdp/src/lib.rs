@@ -8,6 +8,8 @@
 
 mod client;
 mod clipboard;
+#[cfg(test)]
+mod keyboard_type_tests;
 mod server;
 mod session_handle;
 
