@@ -7435,6 +7435,11 @@
           "jump_host": {
             "type": "string",
             "format": "uuid"
+          },
+          "web_file_transfer": {
+            "type": "boolean",
+            "description": "MOAVI: allow the web terminal's file panel (SFTP upload/download) for this target.",
+            "default": true
           }
         }
       },

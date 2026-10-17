@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
+use std::time::Duration;
 
 use bytes::Bytes;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::sync::{Mutex, oneshot};
 use tracing::{error, info};
 use uuid::Uuid;
@@ -18,6 +19,7 @@ use warpgate_protocol_ssh::{
 use warpgate_web_clients_common::{ManagedSession, Sheddable, WebSession};
 
 use crate::protocol::ServerMessage;
+use crate::sftp::{SftpClient, SftpError};
 
 /// Terminal output ring: the whole byte stream is droppable, so an idle/slow client's backlog
 /// is capped at the most recent [`OUTPUT_BUFFER_CAPACITY`] messages.
@@ -43,6 +45,21 @@ pub struct WebSshSession {
     recordings: Arc<SessionRecordings>,
     channel_audits: Arc<Mutex<HashMap<Uuid, ChannelAudit>>>,
     pending_host_key: Arc<Mutex<Option<PendingHostKey>>>,
+
+    // MOAVI: file panel
+    username: String,
+    connected_at: u64,
+    file_transfer_allowed: bool,
+    sftp: Mutex<Option<Arc<SftpClient>>>,
+    /// Channels whose output feeds an SFTP client instead of the terminal.
+    sftp_routes: Mutex<HashMap<Uuid, mpsc::UnboundedSender<Bytes>>>,
+}
+
+/// Static facts shown in the file panel's info tab.
+pub struct WebSshSessionFacts {
+    pub username: String,
+    pub connected_at: u64,
+    pub file_transfer_allowed: bool,
 }
 
 impl WebSshSession {
@@ -57,6 +74,7 @@ impl WebSshSession {
         command_tx: UnboundedSender<(RCCommand, Option<RCCommandReply>)>,
         abort_tx: UnboundedSender<()>,
         recordings: Arc<SessionRecordings>,
+        facts: WebSshSessionFacts,
     ) -> Self {
         Self {
             core: WebSession::new(
@@ -75,6 +93,97 @@ impl WebSshSession {
             recordings,
             channel_audits: Arc::new(Mutex::new(HashMap::new())),
             pending_host_key: Arc::new(Mutex::new(None)),
+            username: facts.username,
+            connected_at: facts.connected_at,
+            file_transfer_allowed: facts.file_transfer_allowed,
+            sftp: Mutex::new(None),
+            sftp_routes: Mutex::new(HashMap::new()),
+        }
+    }
+
+    pub fn username(&self) -> &str {
+        &self.username
+    }
+
+    pub const fn connected_at(&self) -> u64 {
+        self.connected_at
+    }
+
+    pub const fn file_transfer_allowed(&self) -> bool {
+        self.file_transfer_allowed
+    }
+
+    pub async fn recording_enabled(&self) -> bool {
+        self.recordings.is_enabled().await.unwrap_or(false)
+    }
+
+    /// Hands channel output to its SFTP client. Returns false for terminal channels.
+    pub async fn route_sftp_output(&self, channel_id: Uuid, data: &Bytes) -> bool {
+        match self.sftp_routes.lock().await.get(&channel_id) {
+            Some(route) => {
+                let _ = route.send(data.clone());
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Forgets an SFTP channel that ended. Returns false for terminal channels.
+    pub async fn end_sftp_channel(&self, channel_id: Uuid) -> bool {
+        self.sftp_routes.lock().await.remove(&channel_id).is_some()
+    }
+
+    /// The session's SFTP client, opening an `sftp` subsystem channel on the
+    /// target connection on first use (and again after it closed).
+    pub async fn sftp(&self) -> Result<Arc<SftpClient>, SftpError> {
+        let mut slot = self.sftp.lock().await;
+        if let Some(client) = slot.as_ref()
+            && !client.is_closed()
+        {
+            return Ok(client.clone());
+        }
+
+        let channel_id = Uuid::new_v4();
+        let (route_tx, route_rx) = mpsc::unbounded_channel();
+        self.sftp_routes.lock().await.insert(channel_id, route_tx);
+
+        // the reply is dropped (not sent) while the target is still connecting
+        let opened = match self.command(RCCommand::Channel(channel_id, ChannelOperation::OpenShell)) {
+            Some(rx) => matches!(
+                tokio::time::timeout(Duration::from_secs(15), rx).await,
+                Ok(Ok(Ok(())))
+            ),
+            None => false,
+        };
+        if !opened {
+            self.sftp_routes.lock().await.remove(&channel_id);
+            return Err(SftpError::Closed);
+        }
+        self.command(RCCommand::Channel(
+            channel_id,
+            ChannelOperation::RequestSubsystem("sftp".into()),
+        ));
+
+        let command_tx = self.command_tx.clone();
+        let out = Box::new(move |data: Bytes| {
+            command_tx
+                .send((
+                    RCCommand::Channel(channel_id, ChannelOperation::Data(data)),
+                    None,
+                ))
+                .is_ok()
+        });
+        match SftpClient::start(out, route_rx).await {
+            Ok(client) => {
+                info!(session=%self.id(), channel=%channel_id, "SFTP channel opened");
+                *slot = Some(client.clone());
+                Ok(client)
+            }
+            Err(e) => {
+                self.sftp_routes.lock().await.remove(&channel_id);
+                self.close_channel(channel_id);
+                Err(e)
+            }
         }
     }
 

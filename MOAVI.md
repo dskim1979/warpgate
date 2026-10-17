@@ -3,10 +3,11 @@
 Warpgate 0.29.2(Apache-2.0)를 MOAVI Desk의 "보안 게이트웨이"로 쓰기 위해 고친 빌드입니다.
 원본 LICENSE는 그대로 둡니다.
 
-- 이미지: `ghcr.io/dskim1979/warpgate:0.29.2-moavi3` (linux/amd64, `latest` 없음)
+- 이미지: `ghcr.io/dskim1979/warpgate:0.29.2-moavi4` (linux/amd64, `latest` 없음)
   - moavi1: 키보드 수정 + 한국어 화면
   - moavi2: + SSO 자동 시작
   - moavi3: + 다른 계정으로 로그인된 상태에서 바로가기 링크 처리, MOAVI Desk 파비콘·탭 제목
+  - moavi4: + 웹 터미널 오른쪽 정보·파일 패널(SFTP 업로드/다운로드)
 - 브랜치: `moavi/0.29.2-ko` (태그 `v0.29.2`에서 시작)
 - CI: `.github/workflows/moavi-image.yml` (웹 타입검사 → 키보드 단위 테스트 → 이미지 빌드 → 스모크 테스트 → 푸시)
 
@@ -33,6 +34,16 @@ Warpgate 0.29.2(Apache-2.0)를 MOAVI Desk의 "보안 게이트웨이"로 쓰기 
 5. **MOAVI Desk 표시**(moavi3): 파비콘 `warpgate-web/public/assets/favicon.svg`(콘솔 `public/favicon.svg` 복사),
    탭 제목 "보안 게이트웨이 · MOAVI Desk"(영어: "Security gateway · MOAVI Desk"), 사용자 화면 왼쪽 위 로고도 MOAVI 아이콘 +
    "보안 게이트웨이". Warpgate 이름은 관리자 화면 아래쪽에 "Warpgate (Apache-2.0) 기반 · MAKUS SYSTEMS 수정판"으로만 남깁니다.
+6. **웹 터미널 정보·파일 패널**(moavi4): `warpgate-web/src/gateway/SshSidePanel.svelte`(화면),
+   `warpgate-web-ssh/src/sftp.rs`(SFTP v3 클라이언트), `warpgate-web-ssh/src/files.rs`(HTTP), `session.rs`·`manager.rs`(채널 연결).
+   - 같은 대상 SSH 연결에 `sftp` 서브시스템 채널을 하나 더 엽니다. 새 자격 증명은 필요 없고, 대상 접근 규칙도 그대로 적용됩니다.
+   - API(같은 출처, 쿠키 로그인): `GET .../web-ssh/sessions/<id>/info`, `GET .../files?path=`, `GET .../files/download?path=`,
+     `POST .../files/upload?dir=&name=`(본문 = 파일), `POST .../files/mkdir?dir=&name=`, `POST .../files/delete?path=&dir=true|false`
+   - 파일당 최대 2GB(`MAX_UPLOAD_BYTES`). 스트리밍으로 처리하고 동시에 16개×32KB 요청만 오가서 메모리를 거의 쓰지 않습니다.
+   - 감사: 전송마다 세션 로그에 `File transfer started/finished/failed`(경로·크기·방향), 폴더 생성·삭제도 남습니다.
+   - 끄기: SSH 대상 옵션 `web_file_transfer`(기본 true). 관리 API `PUT /@warpgate/admin/api/targets/<id>`의
+     `options`(kind `Ssh`)에 `"web_file_transfer": false`. 새 세션부터 적용됩니다.
+   - 세션이 다른 클러스터 노드에 있으면 409(단일 노드 전제).
 
 ## 새 Warpgate 버전으로 다시 빌드하기
 

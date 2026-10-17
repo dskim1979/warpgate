@@ -139,6 +139,27 @@ pub async fn web_client_session_owner(
 /// Wraps a web-client websocket endpoint (`:session_id` in its path) with
 /// session-owner forwarding: a stream request landing on a node that does not
 /// hold the session's live state is forwarded to the node that does.
+/// MOAVI: endpoints that need the web session on this node (the web-SSH file
+/// panel). A session owned by another cluster node answers 409 instead of
+/// being forwarded.
+pub fn require_local_session<E: Endpoint + 'static>(ep: E) -> impl Endpoint<Output = Response> {
+    ep.around(|ep, req| async move {
+        if let Some(ctx) = req.data::<AuthenticatedRequestContext>().cloned()
+            && let Some(session_id) = req
+                .raw_path_param("session_id")
+                .and_then(|raw| raw.parse::<Uuid>().ok())
+                .map(UserSessionId)
+            && let Owner::Remote(_) = web_client_session_owner(&ctx, session_id).await?
+        {
+            return Err(poem::Error::from_string(
+                "This session runs on another Warpgate node",
+                poem::http::StatusCode::CONFLICT,
+            ));
+        }
+        ep.call(req).await.map(IntoResponse::into_response)
+    })
+}
+
 pub fn forward_ws_to_session_owner<E: Endpoint + 'static>(
     ep: E,
 ) -> impl Endpoint<Output = Response> {

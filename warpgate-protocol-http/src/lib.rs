@@ -46,8 +46,9 @@ use warpgate_web_desktop::WebDesktopClientManager;
 use warpgate_web_desktop::api::ws_handler as desktop_web_client_ws_handler;
 use warpgate_web_ssh::WebSshClientManager;
 use warpgate_web_ssh::api::ws_handler as ssh_web_client_ws_handler;
+use warpgate_web_ssh::files as ssh_files;
 
-use crate::api::common::forward_ws_to_session_owner;
+use crate::api::common::{forward_ws_to_session_owner, require_local_session};
 use crate::client_cache::{HTTP_CLIENT_CACHE_VACUUM_INTERVAL, HttpClientCache};
 use crate::common::{endpoint_auth, page_auth};
 use crate::middleware::{
@@ -255,6 +256,31 @@ impl ProtocolServer for HTTPProtocolServer {
                 .at(
                     "/api/web-ssh/sessions/:session_id/stream",
                     endpoint_auth(forward_ws_to_session_owner(ssh_web_client_ws_handler)),
+                )
+                // MOAVI: web-SSH file panel (SFTP over the session's target connection)
+                .at(
+                    "/api/web-ssh/sessions/:session_id/info",
+                    endpoint_auth(require_local_session(poem::get(ssh_files::info_handler))),
+                )
+                .at(
+                    "/api/web-ssh/sessions/:session_id/files",
+                    endpoint_auth(require_local_session(poem::get(ssh_files::list_handler))),
+                )
+                .at(
+                    "/api/web-ssh/sessions/:session_id/files/download",
+                    endpoint_auth(require_local_session(poem::get(ssh_files::download_handler))),
+                )
+                .at(
+                    "/api/web-ssh/sessions/:session_id/files/upload",
+                    endpoint_auth(require_local_session(poem::post(ssh_files::upload_handler))),
+                )
+                .at(
+                    "/api/web-ssh/sessions/:session_id/files/mkdir",
+                    endpoint_auth(require_local_session(poem::post(ssh_files::mkdir_handler))),
+                )
+                .at(
+                    "/api/web-ssh/sessions/:session_id/files/delete",
+                    endpoint_auth(require_local_session(poem::post(ssh_files::delete_handler))),
                 )
                 .at(
                     "/api/web-desktop/sessions/:session_id/stream",

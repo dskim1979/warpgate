@@ -1,6 +1,7 @@
 <script lang="ts">
     import { t } from 'common/i18n'
     import {
+        faFolderOpen,
         faGear,
         faMinus,
         faPlus,
@@ -33,6 +34,7 @@
         reloginWith,
         requestedSsoProvider,
     } from './lib/accountSwitch'
+    import SshSidePanel from './SshSidePanel.svelte'
     import {
         ConnectionState,
         ReconnectingWebSocket,
@@ -81,6 +83,19 @@
     let activeChannelId: string | null = $state(null)
     let connectionError: string | null = $state(null)
     let sessionNotFound = $state(false)
+
+    // MOAVI: info / files panel on the right
+    let panelOpen = $state(window.innerWidth >= 900)
+    let sidePanel: SshSidePanel | undefined = $state()
+
+    function onTerminalDrop(e: DragEvent) {
+        if (!e.dataTransfer?.files.length) {
+            return
+        }
+        e.preventDefault()
+        panelOpen = true
+        sidePanel?.uploadFiles(e.dataTransfer.files)
+    }
 
     // MOAVI: 403 on a deep link opened while signed in as another account.
     const requestedSso = requestedSsoProvider()
@@ -325,10 +340,20 @@
 
 <div
     class="ssh-web-client d-flex flex-column"
-    use:observeResize
     style={`background-color: ${THEME.background}`}
 >
-    <div class="terminal-area flex-grow-1 position-relative">
+    <div class="main-row d-flex flex-grow-1">
+    <div
+        class="terminal-area flex-grow-1 position-relative"
+        use:observeResize
+        role="presentation"
+        ondragover={e => {
+            if (e.dataTransfer?.types.includes('Files')) {
+                e.preventDefault()
+            }
+        }}
+        ondrop={onTerminalDrop}
+    >
         {#each channelOrder as id (id)}
             {@const channel = channels.get(id)}
             {#if channel}
@@ -348,6 +373,16 @@
                 />
             {/if}
         {/each}
+    </div>
+    {#if sessionId && !connectionError && !accountSwitch}
+        <div class="d-flex" class:d-none={!panelOpen}>
+            <SshSidePanel
+                bind:this={sidePanel}
+                {sessionId}
+                connected={ws?.state === ConnectionState.Connected}
+            />
+        </div>
+    {/if}
     </div>
 
     {#if opening}
@@ -439,6 +474,14 @@
             {#if ws?.state === ConnectionState.Connected}
                 <Button color="danger" onclick={disconnect}>{t('Disconnect')}</Button>
             {/if}
+
+            <Button
+                color={panelOpen ? 'primary' : 'secondary'}
+                title={t('Info and files')}
+                onclick={() => (panelOpen = !panelOpen)}
+            >
+                <Fa icon={faFolderOpen} />
+            </Button>
 
             <Dropdown bind:isOpen={menuOpen}>
                 <DropdownToggle color="secondary" caret={false}>
@@ -565,8 +608,13 @@
         overflow-x: auto;
     }
 
+    .main-row {
+        min-height: 0;
+    }
+
     .terminal-area {
         overflow: hidden;
+        min-width: 0;
     }
 
     .tab {

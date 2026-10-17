@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::Context;
 use russh::keys::PublicKeyBase64;
@@ -19,7 +20,7 @@ use warpgate_web_clients_common::{
 };
 
 use crate::protocol::ServerMessage;
-use crate::session::WebSshSession;
+use crate::session::{WebSshSession, WebSshSessionFacts};
 
 const MAX_SESSIONS_PER_USER: usize = 100;
 
@@ -58,6 +59,8 @@ impl WebSshClientManager {
         let username = authorization.user_info().username.clone();
         let target_name = authorization.target().name.clone();
         let target_kind = TargetKind::from(&authorization.target().options);
+        // MOAVI: per-target switch for the web file panel (default on)
+        let file_transfer_allowed = authorization.options().web_file_transfer;
 
         let (abort_tx, mut abort_rx) = mpsc::unbounded_channel::<()>();
         let session_handle = WebSessionHandle::new(abort_tx);
@@ -91,6 +94,14 @@ impl WebSshClientManager {
             rc_handles.command_tx.clone(),
             rc_handles.abort_tx.clone(),
             services.recordings.clone(),
+            WebSshSessionFacts {
+                username: username.clone(),
+                connected_at: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0),
+                file_transfer_allowed,
+            },
         ));
 
         // weak ref to avoid the ref cycle
@@ -150,6 +161,9 @@ fn spawn_event_loop(
                                 .await;
                         }
                         RCEvent::Output(channel_id, data) => {
+                            if session.route_sftp_output(channel_id, &data).await {
+                                continue;
+                            }
                             session.on_output(channel_id, &data).await;
                             session
                                 .push(ServerMessage::Output {
@@ -159,6 +173,9 @@ fn spawn_event_loop(
                                 .await;
                         }
                         RCEvent::Eof(channel_id) => {
+                            if session.end_sftp_channel(channel_id).await {
+                                continue;
+                            }
                             session.push(ServerMessage::Eof { channel_id }).await;
                         }
 
@@ -169,6 +186,9 @@ fn spawn_event_loop(
                         }
                         RCEvent::Close(channel_id) |
                         RCEvent::ChannelFailure(channel_id) => {
+                            if session.end_sftp_channel(channel_id).await {
+                                continue;
+                            }
                             session.end_channel(channel_id).await;
                             session
                                 .push(ServerMessage::ChannelClosed { channel_id })

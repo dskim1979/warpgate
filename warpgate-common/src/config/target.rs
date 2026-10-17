@@ -8,7 +8,7 @@ use warpgate_tls::TlsMode;
 use super::defaults::{
     _default_empty_string, _default_empty_vec, _default_mysql_port,
     _default_postgres_idle_timeout_str, _default_postgres_port, _default_rdp_port,
-    _default_ssh_port, _default_username, _default_vnc_port,
+    _default_ssh_port, _default_true, _default_username, _default_vnc_port,
 };
 use crate::encryption::EncryptionError;
 use crate::{Protocol, Secret, StoredSecret};
@@ -41,6 +41,10 @@ pub struct TargetSSHOptions {
     pub auth: SSHTargetAuth,
     #[serde(default)]
     pub jump_host: Option<Uuid>,
+    /// MOAVI: allow the web terminal's file panel (SFTP upload/download) for this target.
+    #[serde(default = "_default_true")]
+    #[oai(default = "_default_true")]
+    pub web_file_transfer: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Union)]
