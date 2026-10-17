@@ -91,6 +91,20 @@ export class DesktopClipboard {
         this.metaHeld = false
     }
 
+    // MOAVI: paste text from the in-page paste box (no `paste` event involved):
+    // set the remote clipboard, then press Ctrl+V on the target.
+    pasteText(text: string): void {
+        if (!text) {
+            return
+        }
+        this.sendText(text)
+        this.pendingRemoteText = null
+        this.sendKey(CONTROL_KEY, true)
+        this.sendKey(V_KEY, true)
+        this.sendKey(V_KEY, false)
+        this.sendKey(CONTROL_KEY, false)
+    }
+
     // Whether this event is the platform paste combo, which must be left alone —
     // neither forwarded nor preventDefault-ed — so the browser still fires its own
     // `paste`. Matched both by position and by resolved key: Cyrillic-style layouts

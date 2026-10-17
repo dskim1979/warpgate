@@ -1,6 +1,6 @@
 <script lang="ts">
     import { t } from 'common/i18n'
-    import { faCompress, faExpand } from '@fortawesome/free-solid-svg-icons'
+    import { faClipboard, faCompress, faExpand } from '@fortawesome/free-solid-svg-icons'
     import { Button } from '@sveltestrap/sveltestrap'
     import ConnectingNotice from 'common/ConnectingNotice.svelte'
     import {
@@ -107,6 +107,78 @@
         (key, down) => send({ type: 'key_event', ...key, down }),
     )
 
+    // MOAVI: paste box. Ctrl+V needs the browser's `paste` event and the target's
+    // clipboard channel; the box also works when either is unavailable.
+    const MAX_TYPED_CHARS = 20_000
+    let pasteOpen = $state(false)
+    let pasteText = $state('')
+    let remoteCopied: string | null = $state(null)
+    let pasteNotice: string | null = $state(null)
+
+    function insidePastePanel(e: Event): boolean {
+        return e.target instanceof Element && !!e.target.closest('.paste-panel')
+    }
+
+    function noticeFor(message: string) {
+        pasteNotice = message
+        setTimeout(() => {
+            if (pasteNotice === message) {
+                pasteNotice = null
+            }
+        }, 3000)
+    }
+
+    function pasteToRemote() {
+        if (!pasteText || ws?.state !== ConnectionState.Connected) {
+            return
+        }
+        clipboard.pasteText(pasteText)
+        noticeFor(t('Pasted into the desktop.'))
+        canvas?.focus()
+    }
+
+    // Types the text as Unicode key input (X11 Unicode keysyms), so it arrives even
+    // when the target's clipboard redirection is turned off.
+    function typeToRemote() {
+        if (!pasteText || ws?.state !== ConnectionState.Connected) {
+            return
+        }
+        const text = pasteText.replace(/\r\n?/g, '\n')
+        if (text.length > MAX_TYPED_CHARS) {
+            noticeFor(t('Text is too long to type ({max} characters max).', { max: MAX_TYPED_CHARS }))
+            return
+        }
+        for (const ch of text) {
+            const cp = ch.codePointAt(0) ?? 0
+            let keysym: number
+            if (ch === '\n') {
+                keysym = 0xff0d // Enter
+            } else if (ch === '\t') {
+                keysym = 0xff09 // Tab
+            } else if (cp < 0x20) {
+                continue
+            } else {
+                keysym = 0x0100_0000 + cp
+            }
+            send({ type: 'key_event', keysym, scancode: null, extended: false, down: true })
+            send({ type: 'key_event', keysym, scancode: null, extended: false, down: false })
+        }
+        noticeFor(t('Typed into the desktop.'))
+        canvas?.focus()
+    }
+
+    async function copyRemoteToLocal() {
+        if (remoteCopied === null) {
+            return
+        }
+        try {
+            await navigator.clipboard.writeText(remoteCopied)
+            noticeFor(t('Copied to this PC.'))
+        } catch {
+            noticeFor(t('The browser blocked the clipboard. Select the text and press Ctrl+C.'))
+        }
+    }
+
     function viewportSize(): { width: number; height: number } | null {
         const width = Math.floor(canvasArea?.clientWidth ?? window.innerWidth)
         const height = Math.floor(
@@ -169,6 +241,7 @@
                 break
             case 'clipboard':
                 clipboard.onRemoteCopy(msg.text)
+                remoteCopied = msg.text
                 break
             case 'bell':
                 break
@@ -385,6 +458,9 @@
 
     // RDP uses scancodes and VNC uses the keysym since RFB has no scancodes
     function onKey(e: KeyboardEvent, down: boolean) {
+        if (insidePastePanel(e)) {
+            return
+        }
         clipboard.onKey(e, down)
         // The paste combo is left alone so the browser still fires its own `paste`,
         // which is the only way to read the clipboard without a permission prompt.
@@ -408,7 +484,7 @@
     }
 
     function onPaste(e: ClipboardEvent) {
-        if (ws?.state !== ConnectionState.Connected) {
+        if (insidePastePanel(e) || ws?.state !== ConnectionState.Connected) {
             return
         }
         clipboard.onPaste(e)
@@ -540,6 +616,16 @@
         {/if}
         <button
             type="button"
+            class="btn btn-sm d-flex align-items-center gap-1"
+            class:btn-primary={pasteOpen}
+            class:btn-secondary={!pasteOpen}
+            title={t('Paste text into the desktop')}
+            onclick={() => (pasteOpen = !pasteOpen)}
+        >
+            <Fa icon={faClipboard} fw />{t('Paste')}
+        </button>
+        <button
+            type="button"
             class="btn btn-link"
             title={isFullscreen ? t('Exit fullscreen') : t('Fullscreen')}
             onclick={toggleFullscreen}
@@ -550,6 +636,57 @@
             {t('Disconnect')}
         </Button>
     </div>
+
+    {#if pasteOpen}
+        <div class="paste-panel mx-3 mb-2 p-2">
+            <textarea
+                class="form-control form-control-sm mb-2"
+                rows="4"
+                placeholder={t('Paste text here (Ctrl+V), then choose how to send it.')}
+                bind:value={pasteText}
+            ></textarea>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <button
+                    type="button"
+                    class="btn btn-sm btn-primary"
+                    disabled={!pasteText || ws?.state !== ConnectionState.Connected}
+                    onclick={pasteToRemote}
+                    title={t('Uses the desktop clipboard, then presses Ctrl+V.')}
+                >{t('Paste into desktop')}</button>
+                <button
+                    type="button"
+                    class="btn btn-sm btn-secondary"
+                    disabled={!pasteText || ws?.state !== ConnectionState.Connected}
+                    onclick={typeToRemote}
+                    title={t('Types the text key by key. Works when the clipboard is blocked.')}
+                >{t('Type it')}</button>
+                <button
+                    type="button"
+                    class="btn btn-sm btn-link"
+                    onclick={() => (pasteText = '')}
+                >{t('Clear')}</button>
+                {#if pasteNotice}
+                    <span class="small text-success">{pasteNotice}</span>
+                {/if}
+            </div>
+            {#if remoteCopied !== null}
+                <div class="mt-2 small text-muted">{t('Copied in the desktop:')}</div>
+                <div class="d-flex gap-2 align-items-start">
+                    <textarea
+                        class="form-control form-control-sm"
+                        rows="2"
+                        readonly
+                        value={remoteCopied}
+                    ></textarea>
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-secondary text-nowrap"
+                        onclick={copyRemoteToLocal}
+                    >{t('Copy to this PC')}</button>
+                </div>
+            {/if}
+        </div>
+    {/if}
 
     {#if opening}
         <ConnectingNotice />
@@ -627,6 +764,13 @@
 
     .canvas-area {
         overflow: auto;
+    }
+
+    .paste-panel {
+        flex-shrink: 0;
+        background: #1b1d22;
+        border-radius: 10px;
+        color: #d6d9e0;
     }
 
     canvas {

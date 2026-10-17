@@ -6,6 +6,18 @@ use warpgate_core::DesktopInput;
 /// RDP expresses wheel movement in rotation units; one notch is 120 of them.
 const WHEEL_UNITS_PER_NOTCH: i16 = 120;
 
+/// X11 "Unicode keysyms": `0x0100_0000 + code point`. MOAVI: the web viewer's
+/// type-text fallback sends these so text reaches the target as Unicode input,
+/// independent of the remote clipboard and keyboard layout.
+const UNICODE_KEYSYM_BASE: u32 = 0x0100_0000;
+
+fn unicode_keysym_char(keysym: u32) -> Option<char> {
+    keysym
+        .checked_sub(UNICODE_KEYSYM_BASE)
+        .filter(|cp| *cp >= 0x20)
+        .and_then(char::from_u32)
+}
+
 /// Append the IronRDP operations for one input event. Events RDP has no equivalent for
 /// (clipboard, refresh) produce nothing.
 pub fn translate(input: DesktopInput, ops: &mut Vec<Operation>) {
@@ -38,6 +50,16 @@ pub fn translate(input: DesktopInput, ops: &mut Vec<Operation>) {
             scancode,
             down,
         } => {
+            if scancode.is_none()
+                && let Some(c) = keysym.and_then(unicode_keysym_char)
+            {
+                ops.push(if down {
+                    Operation::UnicodeKeyPressed(c)
+                } else {
+                    Operation::UnicodeKeyReleased(c)
+                });
+                return;
+            }
             // Prefer the physical key position: it is what an RDP client natively sends, so
             // the target's own keyboard layout decides the character. Translating a keysym
             // instead would pin the session to the US layout the table below encodes.
@@ -188,6 +210,15 @@ mod tests {
         assert!(
             matches!(*ops.as_slice(), [Operation::KeyPressed(s)] if s.as_u8() == (false, 0x10))
         );
+    }
+
+    /// MOAVI: Unicode keysyms (type-text fallback) become Unicode input, Korean included.
+    #[test]
+    fn unicode_keysyms_become_unicode_input() {
+        let ops = translate_key(Some(0x0100_0000 + u32::from('한')), None);
+        assert!(matches!(*ops.as_slice(), [Operation::UnicodeKeyPressed('한')]));
+        let ops = translate_key(Some(0x0100_0000 + u32::from('A')), None);
+        assert!(matches!(*ops.as_slice(), [Operation::UnicodeKeyPressed('A')]));
     }
 
     #[test]
