@@ -5,7 +5,6 @@
     import { hasAdminAccess } from 'admin/lib/store'
     import AuthBar from 'common/AuthBar.svelte'
     import BannerModal from 'common/BannerModal.svelte'
-    import Brand from 'common/Brand.svelte'
     import DelayedSpinner from 'common/DelayedSpinner.svelte'
     import Loadable from 'common/Loadable.svelte'
     import RequestsButton from 'common/RequestsButton.svelte'
@@ -145,7 +144,10 @@
         {:else}
             <div class="d-flex align-items-center mt-5 mb-5">
                 <a class="logo" href="/@warpgate">
-                    <Brand />
+                    <span class="d-flex align-items-center gap-2 moavi-brand">
+                        <img src="/@warpgate/assets/favicon.svg" alt="" width="24" height="24">
+                        <span>{t('Security gateway')}</span>
+                    </span>
                 </a>
 
                 <div class="ms-auto d-flex align-items-center">
@@ -220,6 +222,11 @@
 
         display: flex;
         flex-direction: column;
+    }
+
+    .moavi-brand {
+        font-weight: 600;
+        color: var(--bs-body-color);
     }
 
     main {

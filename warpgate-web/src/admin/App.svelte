@@ -1,6 +1,5 @@
 <script lang="ts">
     import { faGithub } from '@fortawesome/free-brands-svg-icons'
-    import { faBriefcase } from '@fortawesome/free-solid-svg-icons'
     import { Alert } from '@sveltestrap/sveltestrap'
     import AuthBar from 'common/AuthBar.svelte'
     import Brand from 'common/Brand.svelte'
@@ -165,14 +164,11 @@
                 </a>
             </div>
             &middot;
-            <div class="d-flex align-items-center gap-2">
-                <Fa icon={faBriefcase} class="text-muted" />
-                <a
-                    target="_blank"
-                    href="https://warpgate.null.page/for-business/?utm_source=app&utm_content=footer"
-                >
-                    Professional support
+            <div class="d-flex align-items-center gap-2 text-muted">
+                <a target="_blank" href="https://github.com/dskim1979/warpgate">
+                    Warpgate
                 </a>
+                (Apache-2.0) 기반 · MAKUS SYSTEMS 수정판
             </div>
             <div class="me-auto"></div>
             <ThemeSwitcher />

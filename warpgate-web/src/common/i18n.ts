@@ -12,6 +12,9 @@ const DEFAULT_LANG: Lang = 'ko'
 const ko: Record<string, string> = {
     // Product / chrome
     Warpgate: '보안 게이트웨이',
+    'Security gateway': '보안 게이트웨이',
+    'Security gateway · MOAVI Desk': '보안 게이트웨이 · MOAVI Desk',
+    'Security gateway admin · MOAVI Desk': '보안 게이트웨이 관리 · MOAVI Desk',
     Admin: '관리',
     'Switch theme': '테마 바꾸기',
     Acknowledge: '확인',
