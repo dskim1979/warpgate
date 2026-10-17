@@ -205,7 +205,7 @@
         {#if showSearch && (filter || !!_items?.length)}
             <Input
                 bind:value={filter}
-                placeholder="Search..."
+                placeholder={t('Search...')}
                 class="flex-grow-1"
             />
         {/if}

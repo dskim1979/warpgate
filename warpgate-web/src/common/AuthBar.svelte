@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { t } from 'common/i18n'
     import { faSignOut } from '@fortawesome/free-solid-svg-icons'
     import {
         Button,
@@ -31,22 +32,22 @@
             {$serverInfo.username}
         </a>
         {#if $serverInfo.authorizedViaTicket}
-            <span class="ml-2">(ticket auth)</span>
+            <span class="ml-2">{t('(ticket auth)')}</span>
         {/if}
 
         {#if $serverInfo?.authorizedViaSsoWithSingleLogout}
             <Dropdown>
-                <DropdownToggle color="link" title="Log out options" size="sm">
+                <DropdownToggle color="link" title={t('Log out options')} size="sm">
                     <Fa icon={faSignOut} fw />
                 </DropdownToggle>
                 <DropdownMenu right={true}>
                     <DropdownItem on:click={logout}>
                         <Fa icon={faSignOut} fw />
-                        Log out of Warpgate
+                        {t('Log out of Warpgate')}
                     </DropdownItem>
                     <DropdownItem on:click={singleLogout}>
                         <Fa icon={faSignOut} fw />
-                        Log out everywhere
+                        {t('Log out everywhere')}
                     </DropdownItem>
                 </DropdownMenu>
             </Dropdown>
@@ -54,7 +55,7 @@
             <Button
                 color="link"
                 on:click={logout}
-                title="Log out"
+                title={t('Log out')}
                 size="sm"
                 class="p-0 ms-2"
             >

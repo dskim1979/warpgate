@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { t } from 'common/i18n'
     import {
         faGear,
         faMinus,
@@ -198,7 +199,7 @@
     function openChannel(id: string) {
         channels.set(id, {
             id,
-            label: `Shell ${channelOrder.length + 1}`,
+            label: t('Shell {n}', { n: channelOrder.length + 1 }),
             terminalTitle: undefined,
             closed: false,
         })
@@ -339,7 +340,7 @@
         <div class="mx-3 mt-3">
             <InfoBox variant="warning">
                 {#if sessionNotFound}
-                    Session not found. It may have expired or been closed.
+                    {t('Session not found. It may have expired or been closed.')}
                 {:else}
                     {connectionError}
                 {/if}
@@ -387,15 +388,15 @@
 
             {#if !sessionNotFound}
                 <span class="text-muted small me-3">
-                    {ws?.state ?? ConnectionState.Connecting}
+                    {t(ws?.state ?? ConnectionState.Connecting)}
                     {#if ws?.state === ConnectionState.Connecting && ws.attempt > 0}
-                        &nbsp;(attempt {ws.attempt})
+                        &nbsp;{t('(attempt {attempt})', { attempt: ws.attempt })}
                     {/if}
                 </span>
             {/if}
 
             {#if ws?.state === ConnectionState.Connected}
-                <Button color="danger" onclick={disconnect}>Disconnect</Button>
+                <Button color="danger" onclick={disconnect}>{t('Disconnect')}</Button>
             {/if}
 
             <Dropdown bind:isOpen={menuOpen}>
@@ -411,7 +412,7 @@
                             class="btn btn-sm btn-secondary"
                             disabled={fontSize <= FONT_SIZE_MIN}
                             onclick={() => { zoomOut(); menuOpen = true }}
-                            aria-label="Zoom out"
+                            aria-label={t('Zoom out')}
                         >
                             <Fa icon={faMinus} />
                         </button>
@@ -423,7 +424,7 @@
                             class="btn btn-sm btn-secondary"
                             disabled={fontSize >= FONT_SIZE_MAX}
                             onclick={() => { zoomIn(); menuOpen = true }}
-                            aria-label="Zoom in"
+                            aria-label={t('Zoom in')}
                         >
                             <Fa icon={faPlus} />
                         </button>
@@ -433,7 +434,7 @@
                         <DropdownItem
                             onclick={() => { showInstructions = true; menuOpen = false }}
                         >
-                            Connect from your machine
+                            {t('Connect from your machine')}
                         </DropdownItem>
                     {/if}
                 </DropdownMenu>
@@ -461,7 +462,7 @@
                 class="modal-button"
                 onclick={() => showInstructions = false}
             >
-                Close
+                {t('Close')}
             </Button>
         </ModalFooter>
     </Modal>
@@ -471,9 +472,8 @@
     <Modal isOpen={true} backdrop="static" keyboard={false}>
         <ModalBody>
             <div class="mb-3">
-                There is currently no trusted {pendingHostKey.key_type} key for
-                the SSH server at {pendingHostKey.host}:{pendingHostKey.port}.
-                Trust this key?
+                {t('There is currently no trusted {type} key for the SSH server at {host}:{port}.', { type: pendingHostKey.key_type, host: pendingHostKey.host, port: pendingHostKey.port })}
+                {t('Trust this key?')}
             </div>
             <code>{pendingHostKey.key_type} {pendingHostKey.key_base64}</code>
         </ModalBody>
@@ -487,7 +487,7 @@
                 disconnect()
             }}
             >
-                Reject and disconnect
+                {t('Reject and disconnect')}
             </Button>
             <Button
                 color="primary"
@@ -497,7 +497,7 @@
                 pendingHostKey = null
             }}
             >
-                Accept and connect
+                {t('Accept and connect')}
             </Button>
         </ModalFooter>
     </Modal>

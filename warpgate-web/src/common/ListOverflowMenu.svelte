@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { t } from 'common/i18n'
     import { faEllipsisV } from '@fortawesome/free-solid-svg-icons'
     import {
         Dropdown,
@@ -26,12 +27,12 @@
         <DropdownMenu end>
             {@render children?.()}
             {#if groupControls.available}
-                <div class="dropdown-header">Groups</div>
+                <div class="dropdown-header">{t('Groups')}</div>
                 <DropdownItem onclick={groupControls.collapseAll}>
-                    Collapse all
+                    {t('Collapse all')}
                 </DropdownItem>
                 <DropdownItem onclick={groupControls.expandAll}>
-                    Expand all
+                    {t('Expand all')}
                 </DropdownItem>
             {/if}
         </DropdownMenu>

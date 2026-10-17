@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { t } from 'common/i18n'
     import { faHand } from '@fortawesome/free-regular-svg-icons'
     import { Button } from '@sveltestrap/sveltestrap'
     import { serverInfo } from 'gateway/lib/store'
@@ -65,10 +66,9 @@
     >
         <Fa icon={faHand} />
         <span>
-            {count}
-            user request{count === 1 ? '' : 's'}
+            {t('{count} user request(s)', { count })}
             {#if !collapsed}
-                awaiting your action
+                {t('awaiting your action')}
             {/if}
         </span>
     </Button>

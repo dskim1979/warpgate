@@ -24,6 +24,7 @@
     }
 </script>
 <script lang="ts">
+    import { t } from 'common/i18n'
     import {
         Button,
         Modal,
@@ -339,7 +340,7 @@
 
 <Modal isOpen={zmodem.confirmPending} backdrop="static" keyboard={false}>
     <ModalBody>
-        The remote side wants to start a ZMODEM file transfer. Accept?
+        {t('The remote side wants to start a ZMODEM file transfer. Accept?')}
     </ModalBody>
     <ModalFooter>
         <Button
@@ -347,14 +348,14 @@
             class="modal-button"
             onclick={() => zmodem.resolveConfirm(false)}
         >
-            Reject
+            {t('Reject')}
         </Button>
         <Button
             color="primary"
             class="modal-button"
             onclick={() => zmodem.resolveConfirm(true)}
         >
-            Accept
+            {t('Accept')}
         </Button>
     </ModalFooter>
 </Modal>

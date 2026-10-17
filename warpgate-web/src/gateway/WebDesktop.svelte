@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { t } from 'common/i18n'
     import { faCompress, faExpand } from '@fortawesome/free-solid-svg-icons'
     import { Button } from '@sveltestrap/sveltestrap'
     import ConnectingNotice from 'common/ConnectingNotice.svelte'
@@ -510,22 +511,22 @@
         >
         {#if !sessionNotFound && !connectionError}
             <span class="text-muted small me-3">
-                {ws?.state ?? ConnectionState.Connecting}
+                {t(ws?.state ?? ConnectionState.Connecting)}
                 {#if ws?.state === ConnectionState.Connecting && ws.attempt > 0}
-                    &nbsp;(attempt {ws.attempt})
+                    &nbsp;{t('(attempt {attempt})', { attempt: ws.attempt })}
                 {/if}
             </span>
         {/if}
         <button
             type="button"
             class="btn btn-link"
-            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            title={isFullscreen ? t('Exit fullscreen') : t('Fullscreen')}
             onclick={toggleFullscreen}
         >
             <Fa icon={isFullscreen ? faCompress : faExpand} fw />
         </button>
         <Button color="danger" size="sm" onclick={disconnect}>
-            Disconnect
+            {t('Disconnect')}
         </Button>
     </div>
 
@@ -537,7 +538,7 @@
         <div class="mx-3 mt-3">
             <InfoBox variant="warning">
                 {#if sessionNotFound}
-                    Session not found. It may have expired or been closed.
+                    {t('Session not found. It may have expired or been closed.')}
                 {:else}
                     {connectionError}
                 {/if}

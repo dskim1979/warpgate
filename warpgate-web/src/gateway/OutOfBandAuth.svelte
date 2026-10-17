@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { t } from 'common/i18n'
     import {
         Alert,
         ButtonGroup,
@@ -40,7 +41,9 @@
             // request that has finished, or on someone else's, is ordinary.
             if (errorStatus(err) === 404) {
                 throw new Error(
-                    'This request is no longer waiting. It may have been answered already, timed out, or belong to a different account than the one you are signed in as.',
+                    t(
+                        'This request is no longer waiting. It may have been answered already, timed out, or belong to a different account than the one you are signed in as.',
+                    ),
                 )
             }
             throw err
@@ -89,12 +92,12 @@
 <Loadable promise={init()}>
     {#if authState}
         <div class="page-summary-bar">
-            <h1>authorization request</h1>
+            <h1>{t('authorization request')}</h1>
         </div>
 
         <div class="mb-5">
             <div class="mb-2">
-                Ensure this security key matches your authentication prompt:
+                {t('Ensure this security key matches your authentication prompt:')}
             </div>
             <div class="identification-string">
                 {#each authState?.identificationString as char}
@@ -106,19 +109,19 @@
         </div>
 
         <div class="mb-3">
-            <div>Authorize this {authState.protocol} session?</div>
+            <div>{t('Authorize this {protocol} session?', { protocol: authState.protocol })}</div>
             <small>
-                Requested <RelativeDate date={authState.started} />
+                {t('Requested')} <RelativeDate date={authState.started} />
                 {#if authState.address}
-                    from {authState.address}
+                    {t('from {address}', { address: authState.address })}
                 {/if}
             </small>
         </div>
 
         {#if authState.state === ApiAuthState.Success}
-            <Alert color="success"> Approved </Alert>
+            <Alert color="success">{t('Approved')}</Alert>
         {:else if authState.state === ApiAuthState.Failed}
-            <Alert color="danger"> Rejected </Alert>
+            <Alert color="danger">{t('Rejected')}</Alert>
         {:else}
             <div class="d-flex">
                 <div class="ms-auto"></div>
@@ -128,7 +131,7 @@
                             color="primary"
                             click={() => approve(ApprovalScope.Target)}
                         >
-                            Authorize & remember for {graceLabel}
+                            {t('Authorize & remember for {duration}', { duration: graceLabel })}
                         </AsyncButton>
                         <Dropdown class="btn-group">
                             <DropdownToggle
@@ -140,13 +143,12 @@
                                 <DropdownItem
                                     onclick={() => approve(ApprovalScope.AllTargets)}
                                 >
-                                    Authorize for all targets & remember for
-                                    {graceLabel}
+                                    {t('Authorize for all targets & remember for {duration}', { duration: graceLabel })}
                                 </DropdownItem>
                                 <DropdownItem
                                     onclick={() => approve(ApprovalScope.Once)}
                                 >
-                                    Authorize this time only
+                                    {t('Authorize this time only')}
                                 </DropdownItem>
                             </DropdownMenu>
                         </Dropdown>
@@ -156,7 +158,7 @@
                         color="primary"
                         click={() => approve(ApprovalScope.Once)}
                     >
-                        Authorize
+                        {t('Authorize')}
                     </AsyncButton>
                 {/if}
                 <AsyncButton
@@ -164,7 +166,7 @@
                     class="d-flex align-items-center ms-2"
                     click={reject}
                 >
-                    Reject
+                    {t('Reject')}
                 </AsyncButton>
             </div>
         {/if}

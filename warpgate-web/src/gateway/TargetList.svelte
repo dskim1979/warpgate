@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { t } from 'common/i18n'
     import {
         faArrowRight,
         faEllipsisV,
@@ -186,8 +187,7 @@
 
 {#if openingTarget}
     <Alert color="info">
-        Connecting to {openingTarget.name}. If this target needs approval, it
-        will start once an administrator approves it.
+        {t('Connecting to {name}. If this target needs approval, it will start once an administrator approves it.', { name: openingTarget.name })}
     </Alert>
 {/if}
 
@@ -205,7 +205,7 @@
     {#snippet header(items, groupControls)}
         {#if items?.length}
             <ListOverflowMenu {groupControls}>
-                <div class="dropdown-header">Preferences</div>
+                <div class="dropdown-header">{t('Preferences')}</div>
                 <DropdownItem>
                     <!-- A disabled input doesn't emit the pointer events the
                     tooltip needs, so the wrapper carries the target id. -->
@@ -214,7 +214,7 @@
                             type="switch"
                             checked={$openTargetsInNewTab}
                             disabled={$openTargetsInNewTabForced}
-                            label="Open targets in a new tab"
+                            label={t('Open targets in a new tab')}
                             onchange={e =>
                                 setOpenTargetsInNewTab(
                                     (e.currentTarget as HTMLInputElement).checked,
@@ -228,7 +228,7 @@
                             target="openTargetsInNewTabSwitch"
                             animation
                         >
-                            Managed by the administrator
+                            {t('Managed by the administrator')}
                         </Tooltip>
                     {/if}
                 </DropdownItem>
@@ -236,7 +236,7 @@
         {/if}
     {/snippet}
     {#snippet empty()}
-        <EmptyState title="You don't have access to any targets yet" />
+        <EmptyState title={t("You don't have access to any targets yet")} />
     {/snippet}
     {#snippet groupHeader(group, state)}
         <CollapsibleGroupHeader {group} {state} />
@@ -313,7 +313,7 @@
                             e.stopPropagation()
                         }}
                         >
-                            Web terminal
+                            {t('Web terminal')}
                         </DropdownItem>
                     {/if}
                     {#if (target.kind === TargetKind.Vnc || target.kind === TargetKind.Rdp) && webClientsEnabled}
@@ -324,7 +324,7 @@
                             e.stopPropagation()
                         }}
                         >
-                            Web desktop
+                            {t('Web desktop')}
                         </DropdownItem>
                     {/if}
                     <DropdownItem
@@ -334,14 +334,14 @@
                         e.stopPropagation()
                     }}
                     >
-                        Connection instructions
+                        {t('Connection instructions')}
                     </DropdownItem>
                     {#if canEditTargets}
                         <DropdownItem
                             href={`/@warpgate/admin#/config/targets/${target.id}`}
                             onclick={e => e.stopPropagation()}
                         >
-                            Edit target
+                            {t('Edit target')}
                         </DropdownItem>
                     {/if}
                 </DropdownMenu>
@@ -352,8 +352,8 @@
 
 {#if $serverInfo?.setupState && !$serverInfo.setupState.hasTargets}
     <EmptyState
-        hint="Once you add targets and assign access, they will appear here"
-        title="No other targets yet"
+        hint={t('Once you add targets and assign access, they will appear here')}
+        title={t('No other targets yet')}
     />
 {/if}
 
@@ -383,7 +383,7 @@
                     openWebSshSession(sshTarget.id))}
             >
                 <Fa icon={faTerminal} />
-                Web terminal
+                {t('Web terminal')}
             </Button>
         {/if}
         <Button
@@ -392,7 +392,7 @@
             block
             on:click={() => { instructionsTarget = undefined }}
         >
-            Close
+            {t('Close')}
         </Button>
     </ModalFooter>
 </Modal>

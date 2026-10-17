@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { t } from 'common/i18n'
     import NavListItem from 'common/NavListItem.svelte'
     import { serverInfo } from 'gateway/lib/store'
 </script>
@@ -10,16 +11,16 @@
 </div>
 
 <NavListItem
-    title="API tokens"
-    description="Manage your API tokens"
+    title={t('API tokens')}
+    description={t('Manage your API tokens')}
     href="/profile/api-tokens"
 />
 
 {#if $serverInfo}
     {#if $serverInfo.ownCredentialManagementAllowed}
         <NavListItem
-            title="Credentials"
-            description="Manage your passwords and keys"
+            title={t('Credentials')}
+            description={t('Manage your passwords and keys')}
             href="/profile/credentials"
         />
     {/if}
@@ -27,8 +28,8 @@
 
 {#if $serverInfo?.ticketSelfServiceEnabled}
     <NavListItem
-        title="Ticket requests"
-        description="Request and manage self-service access tickets"
+        title={t('Ticket requests')}
+        description={t('Request and manage self-service access tickets')}
         href="/ticket-requests"
     />
 {/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { t } from 'common/i18n'
     import {
         faApple,
         faGoogle,
@@ -181,7 +182,7 @@
         e.preventDefault()
     }}
     >
-        <FormGroup floating label="Username">
+        <FormGroup floating label={t('Username')}>
             <!-- svelte-ignore a11y_autofocus -->
             <input
                 bind:value={username}
@@ -194,7 +195,7 @@
             >
         </FormGroup>
 
-        <FormGroup floating label="Password">
+        <FormGroup floating label={t('Password')}>
             <input
                 bind:value={password}
                 name="password"
@@ -212,7 +213,7 @@
             type="submit"
             disabled={busy}
         >
-            Log in
+            {t('Log in')}
             <Fa class="ms-2" fw icon={faArrowRight} />
         </Button>
     </form>
@@ -222,9 +223,9 @@
     <div class="content">
         <div class="page-summary-bar">
             {#if authState === ApiAuthState.NotStarted || authState === ApiAuthState.Failed || authState === ApiAuthState.IpRejected}
-                <h1>Welcome</h1>
+                <h1>{t('Welcome')}</h1>
             {:else}
-                <h1>Continue login</h1>
+                <h1>{t('Continue login')}</h1>
             {/if}
         </div>
         {#if authState === ApiAuthState.OtpNeeded}
@@ -235,7 +236,7 @@
                 e.preventDefault()
             }}
             >
-                <FormGroup floating label="One-time password" class="w-100">
+                <FormGroup floating label={t('One-time password')} class="w-100">
                     <!-- svelte-ignore a11y_autofocus -->
                     <input
                         bind:value={otp}
@@ -266,17 +267,15 @@
 
         {#if reauthRequired}
             <Alert class="mt-3" color="warning">
-                The security policy requires you to sign in again before
-                accessing this function.
+                {t('The security policy requires you to sign in again before accessing this function.')}
             </Alert>
         {/if}
         {#if credentialRejected || authState === ApiAuthState.Failed}
-            <Alert class="mt-3" color="danger">Incorrect credentials</Alert>
+            <Alert class="mt-3" color="danger">{t('Incorrect credentials')}</Alert>
         {/if}
         {#if authState === ApiAuthState.IpRejected}
             <Alert class="mt-3" color="danger">
-                Login denied: your IP address is not in the allowed range for
-                this user
+                {t('Login denied: your IP address is not in the allowed range for this user')}
             </Alert>
         {/if}
         {#if serverErrorMessage}
@@ -290,7 +289,7 @@
             <Loadable promise={ssoProvidersPromise}>
                 {#snippet children(ssoProviders)}
                     {#if ssoProviders.length && passwordLoginAllowed && !(passwordLoginMinimized && !showPasswordLogin)}
-                        <div class="sso-separator"></div>
+                        <div class="sso-separator" style={`--sso-or: "${t('or')}"`}></div>
                     {/if}
                     <div class="sso-buttons">
                         {#each ssoProviders as ssoProvider (ssoProvider.name)}
@@ -314,7 +313,7 @@
                         {/each}
                     </div>
                     {#if ssoProviders.length && passwordLoginAllowed && passwordLoginMinimized && !showPasswordLogin}
-                        <div class="sso-separator"></div>
+                        <div class="sso-separator" style={`--sso-or: "${t('or')}"`}></div>
                     {/if}
                 {/snippet}
             </Loadable>
@@ -327,7 +326,7 @@
                     class="btn btn-link"
                     onclick={() => showPasswordLogin = true}
                 >
-                    Password login
+                    {t('Password login')}
                 </button>
             </div>
         {/if}
@@ -338,7 +337,7 @@
                 class="btn w-100 mt-3 btn-secondary login-view-button"
                 onclick={cancel}
             >
-                Cancel
+                {t('Cancel')}
             </button>
         {/if}
     </div>
@@ -383,7 +382,7 @@
         }
 
         &::after {
-            content: 'or';
+            content: var(--sso-or, 'or');
             position: relative;
             display: inline-block;
             padding: 0 1rem;

@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { t } from 'common/i18n'
     // Acknowledgement is keyed by the banner text itself, so editing the banner
     // re-prompts everyone who already dismissed the old one.
     const STORAGE_KEY = 'warpgateBannerAcknowledged'
@@ -28,7 +29,7 @@
         oncancel={e => e.preventDefault()}
     >
         <p>{banner}</p>
-        <button type="button" onclick={acknowledge}>Acknowledge</button>
+        <button type="button" onclick={acknowledge}>{t('Acknowledge')}</button>
     </dialog>
 {/if}
 

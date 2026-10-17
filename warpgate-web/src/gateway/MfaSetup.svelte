@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { t } from 'common/i18n'
     import { faArrowRight } from '@fortawesome/free-solid-svg-icons'
     import { Button } from '@sveltestrap/sveltestrap'
     import CreateOtpModal from 'admin/CreateOtpModal.svelte'
@@ -21,12 +22,11 @@
 </script>
 
 <div class="page-summary-bar">
-    <h1>Multi-factor authentication setup</h1>
+    <h1>{t('Multi-factor authentication setup')}</h1>
 </div>
 
 <p>
-    Before you can use Warpgate, you need to add a second authentication factor
-    to protect your account.
+    {t('Before you can use Warpgate, you need to add a second authentication factor to protect your account.')}
 </p>
 
 <Button
@@ -37,7 +37,7 @@
         e.preventDefault()
     }}
 >
-    Set up one-time password
+    {t('Set up one-time password')}
     <Fa icon={faArrowRight} />
 </Button>
 

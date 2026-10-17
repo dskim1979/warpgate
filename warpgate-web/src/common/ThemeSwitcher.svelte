@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { t } from 'common/i18n'
     import {
         faCloudSun,
         faMoon,
@@ -21,7 +22,7 @@
     }
 </script>
 
-<Button color="link" on:click={toggle} id="button" title="Switch theme">
+<Button color="link" on:click={toggle} id="button" title={t('Switch theme')}>
     {#if $currentTheme === 'dark'}
         <Fa fw icon={faMoon} />
     {:else if $currentTheme === 'light'}

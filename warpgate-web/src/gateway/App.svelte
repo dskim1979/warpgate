@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { lang, setLang, t } from 'common/i18n'
     import { faArrowRight, faCog } from '@fortawesome/free-solid-svg-icons'
     import { Button } from '@sveltestrap/sveltestrap'
     import { hasAdminAccess } from 'admin/lib/store'
@@ -154,7 +155,7 @@
                             class="btn btn-warning btn-sm d-flex align-items-center gap-1 me-3"
                         >
                             <Fa icon={faCog} class="mx-1" />
-                            <span class="me-1">Admin</span>
+                            <span class="me-1">{t('Admin')}</span>
                         </a>
                     {/if}
 
@@ -175,11 +176,10 @@
                     >
                         <div>
                             <strong class="d-block">
-                                {authRequest.protocol}
-                                authentication request
+                                {t('{protocol} authentication request', { protocol: authRequest.protocol })}
                             </strong>
                             {#if authRequest.address}
-                                <small> From {authRequest.address} </small>
+                                <small>{t('From {address}', { address: authRequest.address })}</small>
                             {/if}
                         </div>
                         <Fa class="ms-auto" icon={faArrowRight} />
@@ -199,6 +199,13 @@
                 {:else}
                     <div class="me-auto"></div>
                 {/if}
+                <button
+                    type="button"
+                    class="btn btn-link btn-sm"
+                    onclick={() => setLang(lang === 'ko' ? 'en' : 'ko')}
+                >
+                    {lang === 'ko' ? 'English' : '한국어'}
+                </button>
                 <ThemeSwitcher />
             </footer>
         {/if}
