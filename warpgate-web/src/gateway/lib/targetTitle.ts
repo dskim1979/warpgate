@@ -34,6 +34,9 @@ async function targetDescription(name: string): Promise<string | undefined> {
 
 export async function sessionTabTitle(targetName: string, targetKind?: string): Promise<string> {
     const display = targetDisplayName(targetName, await targetDescription(targetName))
-    const protocol = targetKind ? ` (${targetKind.toUpperCase()})` : ''
+    const kind = targetKind?.toUpperCase()
+    // the engine's description may already end with "(RDP)" / "(SSH)"
+    const protocol =
+        kind && !display.toUpperCase().endsWith(`(${kind})`) ? ` (${kind})` : ''
     return `${display}${protocol} · ${t('Security gateway')}`
 }
