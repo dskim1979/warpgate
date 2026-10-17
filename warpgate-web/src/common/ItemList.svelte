@@ -30,6 +30,7 @@
 </script>
 
 <script lang="ts" generics="T, G = unknown, GK = unknown">
+    import { t } from 'common/i18n'
     import { Input } from '@sveltestrap/sveltestrap'
     import {
         combineLatest,
