@@ -3,7 +3,9 @@
 Warpgate 0.29.2(Apache-2.0)를 MOAVI Desk의 "보안 게이트웨이"로 쓰기 위해 고친 빌드입니다.
 원본 LICENSE는 그대로 둡니다.
 
-- 이미지: `ghcr.io/dskim1979/warpgate:0.29.2-moavi1` (linux/amd64, `latest` 없음)
+- 이미지: `ghcr.io/dskim1979/warpgate:0.29.2-moavi2` (linux/amd64, `latest` 없음)
+  - moavi1: 키보드 수정 + 한국어 화면
+  - moavi2: + SSO 자동 시작
 - 브랜치: `moavi/0.29.2-ko` (태그 `v0.29.2`에서 시작)
 - CI: `.github/workflows/moavi-image.yml` (웹 타입검사 → 키보드 단위 테스트 → 이미지 빌드 → 스모크 테스트 → 푸시)
 
@@ -17,6 +19,10 @@ Warpgate 0.29.2(Apache-2.0)를 MOAVI Desk의 "보안 게이트웨이"로 쓰기 
 2. **한국어 화면**: `warpgate-web/src/common/i18n.ts`(영어 문장을 키로 쓰는 사전 + `t()`).
    기본은 한국어입니다. `?lang=en` 또는 화면 아래 "English" 버튼으로 바꾸면 브라우저에 기억됩니다.
    번역이 없는 문장은 영어로 나옵니다. 관리자 화면은 대부분 영어로 둡니다.
+3. **SSO 자동 시작**(moavi2): `warpgate-web/src/gateway/Login.svelte`. SSO 공급자가 하나뿐이면 로그인 화면에서
+   바로 SSO로 넘어갑니다. `next=`는 그대로 넘겨서 `#/web-desktop/start/<id>` 같은 링크는 로그인 뒤 그 화면으로 갑니다.
+   - 비밀번호로 로그인하려면 `/@warpgate?local=1` 또는 `/@warpgate#/login?local=1`
+   - SSO 오류(`login_error`)가 있거나, 60초 안에 이미 자동으로 보냈으면 다시 보내지 않습니다(무한 반복 방지).
 
 ## 새 Warpgate 버전으로 다시 빌드하기
 

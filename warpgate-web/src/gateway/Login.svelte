@@ -51,6 +51,35 @@
     const serverErrorMessage = new URLSearchParams(location.search).get(
         'login_error',
     )
+    // MOAVI: with a single SSO provider, a fresh login goes straight to it.
+    // `?local=1` (in the hash route or the page URL) keeps the password form,
+    // and an SSO error or a recent auto-redirect stops it to avoid a loop.
+    const localLoginRequested =
+        urlParams.get('local') === '1' ||
+        new URLSearchParams(location.search).get('local') === '1'
+    const AUTO_SSO_KEY = 'moavi-auto-sso-at'
+    const AUTO_SSO_COOLDOWN_MS = 60_000
+
+    function autoSsoAllowed(): boolean {
+        if (localLoginRequested || serverErrorMessage) {
+            return false
+        }
+        try {
+            const last = Number(sessionStorage.getItem(AUTO_SSO_KEY) ?? 0)
+            return !(Date.now() - last < AUTO_SSO_COOLDOWN_MS)
+        } catch {
+            return true
+        }
+    }
+
+    function markAutoSso() {
+        try {
+            sessionStorage.setItem(AUTO_SSO_KEY, String(Date.now()))
+        } catch {
+            // ignore
+        }
+    }
+
     const initPromise = init()
 
     async function init() {
@@ -97,6 +126,18 @@
             if (providers.length === 1) {
                 // biome-ignore lint/style/noNonNullAssertion: length checked above
                 startSSO(providers[0]!)
+            }
+        }
+        if (
+            authState === ApiAuthState.NotStarted &&
+            allowSsoRedirect &&
+            autoSsoAllowed()
+        ) {
+            const providers = await ssoProvidersPromise
+            if (providers.length === 1) {
+                markAutoSso()
+                // biome-ignore lint/style/noNonNullAssertion: length checked above
+                await startSSO(providers[0]!)
             }
         }
         if (authState === ApiAuthState.OtpNeeded) {
