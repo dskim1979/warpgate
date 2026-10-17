@@ -22,6 +22,12 @@
     import { loadTheme } from 'theme'
     import { api, ResponseError, type WebDesktopSessionInfo } from './lib/api'
     import {
+        type AccountSwitch,
+        accountSwitchFor,
+        reloginWith,
+        requestedSsoProvider,
+    } from './lib/accountSwitch'
+    import {
         ConnectionState,
         ReconnectingWebSocket,
     } from './lib/ReconnectingWebSocket.svelte'
@@ -57,6 +63,10 @@
     let ctx: CanvasRenderingContext2D | null = null
     let connectionError: string | null = $state(null)
     let sessionNotFound = $state(false)
+
+    // MOAVI: 403 on a deep link opened while signed in as another account.
+    const requestedSso = requestedSsoProvider()
+    let accountSwitch: AccountSwitch | null = $state(null)
     let opening = $state(false)
     let sessionInfo = $state<WebDesktopSessionInfo | null>(null)
 
@@ -463,6 +473,14 @@
             if (await handleReauthError(e)) {
                 return
             }
+            const sw = await accountSwitchFor(e, requestedSso)
+            if (sw) {
+                accountSwitch = sw
+                if (sw.kind === 'switch' && sw.auto) {
+                    await reloginWith(sw.provider)
+                }
+                return
+            }
             connectionError = await stringifyError(e)
             if (e instanceof ResponseError && e.response.status === 404) {
                 sessionNotFound = true
@@ -532,6 +550,29 @@
 
     {#if opening}
         <ConnectingNotice />
+    {/if}
+
+    {#if accountSwitch}
+        <div class="mx-3 mt-3">
+            <InfoBox variant="warning">
+                {#if accountSwitch.kind === 'denied'}
+                    {t('You do not have access to this desktop.')}
+                {:else if accountSwitch.auto}
+                    {t('Signing in again with {name}...', { name: accountSwitch.label })}
+                {:else}
+                    {@const sw = accountSwitch}
+                    <div>{t('You are signed in with a different account.')}</div>
+                    <Button
+                        color="primary"
+                        size="sm"
+                        class="mt-2"
+                        onclick={() => reloginWith(sw.provider)}
+                    >
+                        {t('Sign in again with {name}', { name: sw.label })}
+                    </Button>
+                {/if}
+            </InfoBox>
+        </div>
     {/if}
 
     {#if connectionError}

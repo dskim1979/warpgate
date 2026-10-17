@@ -2160,6 +2160,10 @@
           "authorized_via_sso_with_single_logout": {
             "type": "boolean"
           },
+          "sso_provider": {
+            "type": "string",
+            "description": "MOAVI: name of the SSO provider this browser session signed in with, if any."
+          },
           "own_credential_management_allowed": {
             "type": "boolean"
           },

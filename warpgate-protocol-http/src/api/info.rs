@@ -121,6 +121,8 @@ pub struct Info {
     password_login_mode: Parameters::PasswordLoginMode,
     authorized_via_ticket: bool,
     authorized_via_sso_with_single_logout: bool,
+    /// MOAVI: name of the SSO provider this browser session signed in with, if any.
+    sso_provider: Option<String>,
     own_credential_management_allowed: bool,
     ticket_self_service_enabled: bool,
     ticket_max_duration_seconds: Option<i64>,
@@ -318,6 +320,10 @@ impl Api {
             authorized_via_sso_with_single_logout: session
                 .get_sso_login_state()
                 .is_some_and(|state| state.supports_single_logout),
+            sso_provider: auth_ctx
+                .is_some()
+                .then(|| session.get_sso_login_state().map(|state| state.provider))
+                .flatten(),
             external_hosts: protocol_external_hosts,
             ports: if auth_ctx.is_some() {
                 PortsInfo {

@@ -3,9 +3,10 @@
 Warpgate 0.29.2(Apache-2.0)를 MOAVI Desk의 "보안 게이트웨이"로 쓰기 위해 고친 빌드입니다.
 원본 LICENSE는 그대로 둡니다.
 
-- 이미지: `ghcr.io/dskim1979/warpgate:0.29.2-moavi2` (linux/amd64, `latest` 없음)
+- 이미지: `ghcr.io/dskim1979/warpgate:0.29.2-moavi3` (linux/amd64, `latest` 없음)
   - moavi1: 키보드 수정 + 한국어 화면
   - moavi2: + SSO 자동 시작
+  - moavi3: + 다른 계정으로 로그인된 상태에서 바로가기 링크 처리
 - 브랜치: `moavi/0.29.2-ko` (태그 `v0.29.2`에서 시작)
 - CI: `.github/workflows/moavi-image.yml` (웹 타입검사 → 키보드 단위 테스트 → 이미지 빌드 → 스모크 테스트 → 푸시)
 
@@ -23,6 +24,12 @@ Warpgate 0.29.2(Apache-2.0)를 MOAVI Desk의 "보안 게이트웨이"로 쓰기 
    바로 SSO로 넘어갑니다. `next=`는 그대로 넘겨서 `#/web-desktop/start/<id>` 같은 링크는 로그인 뒤 그 화면으로 갑니다.
    - 비밀번호로 로그인하려면 `/@warpgate?local=1` 또는 `/@warpgate#/login?local=1`
    - SSO 오류(`login_error`)가 있거나, 60초 안에 이미 자동으로 보냈으면 다시 보내지 않습니다(무한 반복 방지).
+4. **다른 계정 세션 처리**(moavi3): `warpgate-web/src/gateway/lib/accountSwitch.ts`, WebDesktop/WebSsh.
+   `#/web-desktop/start/<id>`·`#/web-ssh/start/<id>`가 403이면 "다른 계정으로 로그인되어 있습니다." +
+   "<SSO 이름>로 다시 로그인" 버튼(로그아웃 → 같은 SSO → 같은 링크로 복귀).
+   - 링크에 `?sso=<공급자 이름>`(예: `#/web-desktop/start/<id>?sso=moavi-desk`)을 붙이면 버튼 없이 바로 바꿉니다.
+   - 이미 그 SSO로 로그인한 사용자이거나, 2분 안에 다시 로그인한 뒤에도 403이면 "이 데스크톱에 접근 권한이 없습니다."만 보여 줍니다(반복 없음).
+   - 서버: `/@warpgate/api/info`에 `sso_provider`(이 브라우저 세션이 로그인한 SSO 이름)를 추가했습니다(`warpgate-protocol-http/src/api/info.rs`).
 
 ## 새 Warpgate 버전으로 다시 빌드하기
 

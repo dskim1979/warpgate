@@ -105,6 +105,11 @@ const ko: Record<string, string> = {
     'Accept and connect': '수락하고 연결',
     Accept: '수락',
     'Shell {n}': '셸 {n}',
+    'You are signed in with a different account.': '다른 계정으로 로그인되어 있습니다.',
+    'Sign in again with {name}': '{name}로 다시 로그인',
+    'Signing in again with {name}...': '{name}로 다시 로그인하는 중...',
+    'You do not have access to this desktop.': '이 데스크톱에 접근 권한이 없습니다.',
+    'You do not have access to this server.': '이 서버에 접근 권한이 없습니다.',
     'There is currently no trusted {type} key for the SSH server at {host}:{port}.':
         '{host}:{port} 서버의 {type} 키를 아직 신뢰하지 않았습니다.',
     'The remote side wants to start a ZMODEM file transfer. Accept?':

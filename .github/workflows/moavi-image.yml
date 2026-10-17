@@ -13,7 +13,7 @@ permissions:
 
 env:
   IMAGE: ghcr.io/dskim1979/warpgate
-  MOAVI_TAG: 0.29.2-moavi2
+  MOAVI_TAG: 0.29.2-moavi3
   UPSTREAM_IMAGE: ghcr.io/warp-tech/warpgate:0.29.2
 
 concurrency:
