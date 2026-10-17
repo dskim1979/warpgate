@@ -213,6 +213,12 @@ pub struct TargetVncOptions {
 
     #[serde(default)]
     pub auth: VncTargetAuth,
+
+    // MOAVI: clipboard direction policy (off | in | out | both), see WebClipboardMode.
+    // Plain comment: a field description would wrap the enum in allOf.
+    #[serde(default)]
+    #[oai(default)]
+    pub web_clipboard: WebClipboardMode,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Union)]
@@ -236,6 +242,35 @@ pub struct VncTargetPasswordAuth {
 impl Default for VncTargetAuth {
     fn default() -> Self {
         Self::None(VncTargetNoneAuth::default())
+    }
+}
+
+/// MOAVI: which way the clipboard may flow for an RDP/VNC target, in the web
+/// viewer and (for RDP) native clients. "in" = viewer → target, "out" = target → viewer.
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Enum, Default)]
+pub enum WebClipboardMode {
+    #[serde(rename = "off")]
+    #[oai(rename = "off")]
+    Off,
+    #[serde(rename = "in")]
+    #[oai(rename = "in")]
+    In,
+    #[serde(rename = "out")]
+    #[oai(rename = "out")]
+    Out,
+    #[default]
+    #[serde(rename = "both")]
+    #[oai(rename = "both")]
+    Both,
+}
+
+impl WebClipboardMode {
+    pub const fn allows_in(self) -> bool {
+        matches!(self, Self::In | Self::Both)
+    }
+
+    pub const fn allows_out(self) -> bool {
+        matches!(self, Self::Out | Self::Both)
     }
 }
 
@@ -285,6 +320,11 @@ pub struct TargetRdpOptions {
     // description wraps the enum in allOf, which typescript-fetch misgenerates.
     #[serde(default)]
     pub tls_security: RdpTlsSecurity,
+
+    // MOAVI: clipboard direction policy (off | in | out | both), see WebClipboardMode.
+    #[serde(default)]
+    #[oai(default)]
+    pub web_clipboard: WebClipboardMode,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default, Enum)]
@@ -468,6 +508,31 @@ pub fn map_target_secrets(
 pub fn redact_target_secrets(value: &mut serde_json::Value) {
     // The closure is infallible, so the walk is too.
     let _ = map_target_secrets(value, &mut |_| Ok(String::new()));
+}
+
+#[cfg(test)]
+mod moavi_tests {
+    use super::{TargetRdpOptions, TargetSSHOptions, TargetVncOptions, WebClipboardMode};
+
+    #[test]
+    fn web_clipboard_defaults_to_both_and_parses_directions() -> serde_json::Result<()> {
+        let rdp: TargetRdpOptions = serde_json::from_str(r#"{"host":"h"}"#)?;
+        assert_eq!(rdp.web_clipboard, WebClipboardMode::Both);
+        let vnc: TargetVncOptions = serde_json::from_str(r#"{"host":"h","web_clipboard":"in"}"#)?;
+        assert_eq!(vnc.web_clipboard, WebClipboardMode::In);
+        for (mode, inbound, outbound) in [
+            (WebClipboardMode::Off, false, false),
+            (WebClipboardMode::In, true, false),
+            (WebClipboardMode::Out, false, true),
+            (WebClipboardMode::Both, true, true),
+        ] {
+            assert_eq!(mode.allows_in(), inbound);
+            assert_eq!(mode.allows_out(), outbound);
+        }
+        let ssh: TargetSSHOptions = serde_json::from_str(r#"{"host":"h"}"#)?;
+        assert!(ssh.web_file_transfer);
+        Ok(())
+    }
 }
 
 #[cfg(test)]

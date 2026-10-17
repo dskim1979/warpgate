@@ -41,6 +41,8 @@ struct WebDesktopSessionCreated {
 struct WebDesktopSessionInfo {
     target_name: String,
     target_kind: TargetKind,
+    // MOAVI: clipboard direction policy, so the viewer can hide blocked paths
+    clipboard: warpgate_common::WebClipboardMode,
 }
 
 #[derive(ApiResponse)]
@@ -153,6 +155,7 @@ impl Api {
                     WebDesktopSessionInfo {
                         target_name: session.target_name().into(),
                         target_kind: *session.target_kind(),
+                        clipboard: session.clipboard_mode(),
                     },
                 ))),
                 SessionAccess::NotFound | SessionAccess::Forbidden => {

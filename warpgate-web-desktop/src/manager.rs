@@ -61,6 +61,12 @@ impl WebDesktopClientManager {
         let username = authorization.user_info().username.clone();
         let target_name = authorization.target().name.clone();
         let target_kind = TargetKind::from(&authorization.target().options);
+        // MOAVI: the target's clipboard direction policy
+        let clipboard_mode = match &authorization.target().options {
+            TargetOptions::Rdp(options) => options.web_clipboard,
+            TargetOptions::Vnc(options) => options.web_clipboard,
+            _ => warpgate_common::WebClipboardMode::Both,
+        };
         let protocol_name = match &authorization.target().options {
             TargetOptions::Vnc(_) => warpgate_protocol_vnc::PROTOCOL_NAME,
             TargetOptions::Rdp(_) => warpgate_protocol_rdp::PROTOCOL_NAME,
@@ -148,6 +154,7 @@ impl WebDesktopClientManager {
             input_tx,
             abort_tx,
             recorder.clone(),
+            clipboard_mode,
         ));
 
         // Admin-initiated close: stop the backend and mark the session dead. Holds a
@@ -192,6 +199,11 @@ async fn emit(
     event: DesktopEvent,
     raw: Option<&Bytes>,
 ) {
+    if let DesktopEvent::Clipboard(text) = &event
+        && !session.admit_clipboard_out(text)
+    {
+        return;
+    }
     if let Some(recorder) = recorder {
         let result = match (&event, raw) {
             (DesktopEvent::JpegImage { rect, data }, Some(raw)) => {

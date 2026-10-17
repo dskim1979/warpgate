@@ -2893,7 +2893,8 @@
         "title": "WebDesktopSessionInfo",
         "required": [
           "target_name",
-          "target_kind"
+          "target_kind",
+          "clipboard"
         ],
         "properties": {
           "target_name": {
@@ -2901,6 +2902,9 @@
           },
           "target_kind": {
             "$ref": "#/components/schemas/TargetKind"
+          },
+          "clipboard": {
+            "$ref": "#/components/schemas/WebClipboardMode"
           }
         }
       },
@@ -2932,6 +2936,15 @@
             "$ref": "#/components/schemas/TargetKind"
           }
         }
+      },
+      "WebClipboardMode": {
+        "type": "string",
+        "enum": [
+          "off",
+          "in",
+          "out",
+          "both"
+        ]
       }
     },
     "securitySchemes": {

@@ -60,6 +60,8 @@ jobs:
         run: cargo test --manifest-path vendor/ironrdp-pdu/Cargo.toml --features std -- gcc::core_data::client::tests
       - name: warpgate-protocol-rdp keyboardType tests (patched crate in the real build graph)
         run: cargo test -p warpgate-protocol-rdp -- keyboard_type_tests client::input::tests
+      - name: Target option tests (web_clipboard, web_file_transfer)
+        run: cargo test -p warpgate-common -- moavi_tests
       - name: web-SSH file panel tests (SFTP client, incl. a real OpenSSH server)
         env:
           MOAVI_SFTP_HOST: 127.0.0.1

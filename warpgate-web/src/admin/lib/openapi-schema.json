@@ -7402,6 +7402,9 @@
           },
           "tls_security": {
             "$ref": "#/components/schemas/RdpTlsSecurity"
+          },
+          "web_clipboard": {
+            "$ref": "#/components/schemas/WebClipboardMode"
           }
         }
       },
@@ -7512,6 +7515,9 @@
           },
           "auth": {
             "$ref": "#/components/schemas/VncTargetAuth"
+          },
+          "web_clipboard": {
+            "$ref": "#/components/schemas/WebClipboardMode"
           }
         }
       },
@@ -8186,6 +8192,15 @@
             "type": "string"
           }
         }
+      },
+      "WebClipboardMode": {
+        "type": "string",
+        "enum": [
+          "off",
+          "in",
+          "out",
+          "both"
+        ]
       }
     },
     "securitySchemes": {

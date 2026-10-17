@@ -114,6 +114,16 @@
     let pasteText = $state('')
     let remoteCopied: string | null = $state(null)
     let pasteNotice: string | null = $state(null)
+    // MOAVI: the pool's clipboard policy for this target (also enforced server-side)
+    const clipboardMode = $derived(sessionInfo?.clipboard ?? 'both')
+    const clipboardIn = $derived(clipboardMode === 'in' || clipboardMode === 'both')
+    const clipboardOut = $derived(clipboardMode === 'out' || clipboardMode === 'both')
+    $effect(() => {
+        clipboard.setPolicy(clipboardIn, clipboardOut)
+        if (!clipboardOut) {
+            remoteCopied = null
+        }
+    })
 
     function insidePastePanel(e: Event): boolean {
         return e.target instanceof Element && !!e.target.closest('.paste-panel')
@@ -129,7 +139,7 @@
     }
 
     function pasteToRemote() {
-        if (!pasteText || ws?.state !== ConnectionState.Connected) {
+        if (!clipboardIn || !pasteText || ws?.state !== ConnectionState.Connected) {
             return
         }
         clipboard.pasteText(pasteText)
@@ -140,7 +150,7 @@
     // Types the text as Unicode key input (X11 Unicode keysyms), so it arrives even
     // when the target's clipboard redirection is turned off.
     function typeToRemote() {
-        if (!pasteText || ws?.state !== ConnectionState.Connected) {
+        if (!clipboardIn || !pasteText || ws?.state !== ConnectionState.Connected) {
             return
         }
         const text = pasteText.replace(/\r\n?/g, '\n')
@@ -168,7 +178,7 @@
     }
 
     async function copyRemoteToLocal() {
-        if (remoteCopied === null) {
+        if (!clipboardOut || remoteCopied === null) {
             return
         }
         try {
@@ -241,7 +251,9 @@
                 break
             case 'clipboard':
                 clipboard.onRemoteCopy(msg.text)
-                remoteCopied = msg.text
+                if (clipboardOut) {
+                    remoteCopied = msg.text
+                }
                 break
             case 'bell':
                 break
@@ -614,6 +626,7 @@
                 {/if}
             </span>
         {/if}
+        {#if clipboardIn || clipboardOut}
         <button
             type="button"
             class="btn btn-sm d-flex align-items-center gap-1"
@@ -624,6 +637,7 @@
         >
             <Fa icon={faClipboard} fw />{t('Paste')}
         </button>
+        {/if}
         <button
             type="button"
             class="btn btn-link"
@@ -637,8 +651,11 @@
         </Button>
     </div>
 
-    {#if pasteOpen}
+    {#if pasteOpen && (clipboardIn || clipboardOut)}
         <div class="paste-panel mx-3 mb-2 p-2">
+            {#if !clipboardIn}
+                <div class="small text-muted">{t('Pasting into this desktop is turned off.')}</div>
+            {:else}
             <textarea
                 class="form-control form-control-sm mb-2"
                 rows="4"
@@ -669,7 +686,8 @@
                     <span class="small text-success">{pasteNotice}</span>
                 {/if}
             </div>
-            {#if remoteCopied !== null}
+            {/if}
+            {#if clipboardOut && remoteCopied !== null}
                 <div class="mt-2 small text-muted">{t('Copied in the desktop:')}</div>
                 <div class="d-flex gap-2 align-items-start">
                     <textarea

@@ -109,7 +109,9 @@ pub async fn ws_handler(
                                     && let Some(keyframe) = session.keyframe().await {
                                     session.push(keyframe).await;
                                 }
-                                if let Some(input) = Option::<DesktopInput>::from(client_msg) {
+                                if let Some(input) = Option::<DesktopInput>::from(client_msg)
+                                    && session.admit_input(&input)
+                                {
                                     session.send_input(input).await;
                                 }
                             }
@@ -127,6 +129,7 @@ pub async fn ws_handler(
             }
         }
 
+        session.flush_typed();
         session.start_disconnect_timer(manager.clone()).await;
 
         drop(session_keepalive);

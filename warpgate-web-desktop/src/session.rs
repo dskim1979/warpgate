@@ -1,11 +1,12 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use bytes::Bytes;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::Sender;
-use tracing::warn;
+use tracing::{info, warn};
 use uuid::Uuid;
-use warpgate_common::UserSessionId;
+use warpgate_common::{UserSessionId, WebClipboardMode};
 use warpgate_core::recordings::DesktopRecorder;
 use warpgate_core::{DesktopEvent, DesktopInput, DesktopRect, Framebuffer, Rect};
 use warpgate_web_clients_common::{ManagedSession, Sheddable, WebSession};
@@ -37,7 +38,16 @@ pub struct WebDesktopSession {
     /// Separate from the recorder's: that one must only see events it actually wrote.
     /// Holds the refinement scratch too, so encoding one region needs a single lock.
     framebuffer: Mutex<(Framebuffer, RefineScratch)>,
+    // MOAVI: clipboard direction policy of the target, and text typed through the
+    // viewer's type-it box (Unicode keysyms) not logged yet
+    clipboard_mode: WebClipboardMode,
+    is_vnc: bool,
+    typed_chars: AtomicU64,
 }
+
+/// X11 Unicode keysyms (`0x0100_0000 + code point`) only come from the viewer's
+/// type-it box, never from a physical key press.
+const UNICODE_KEYSYM_BASE: u32 = 0x0100_0000;
 
 /// Buffers reused across refinement encodes. A settling screen refines many regions back to
 /// back, and `rgba` is a full copy of each region's pixels — a fresh allocation per region
@@ -58,7 +68,9 @@ impl WebDesktopSession {
         input_tx: Sender<DesktopInput>,
         abort_tx: tokio::sync::mpsc::UnboundedSender<()>,
         recorder: Option<Arc<DesktopRecorder>>,
+        clipboard_mode: WebClipboardMode,
     ) -> Self {
+        let is_vnc = target_kind == warpgate_db_entities::Target::TargetKind::Vnc;
         Self {
             core: WebSession::new(
                 id,
@@ -73,7 +85,71 @@ impl WebDesktopSession {
             input_tx,
             recorder,
             framebuffer: Mutex::new((Framebuffer::default(), RefineScratch::default())),
+            clipboard_mode,
+            is_vnc,
+            typed_chars: AtomicU64::new(0),
         }
+    }
+
+    pub const fn clipboard_mode(&self) -> WebClipboardMode {
+        self.clipboard_mode
+    }
+
+    /// MOAVI: applies the target's clipboard policy to viewer input. Pasted text and
+    /// type-it text are "in" transfers; ordinary key presses always pass. RDP logs
+    /// allowed clipboard transfers in its client (which also serves native clients),
+    /// VNC here.
+    pub fn admit_input(&self, input: &DesktopInput) -> bool {
+        match input {
+            DesktopInput::Clipboard(text) => {
+                self.flush_typed();
+                if !self.clipboard_mode.allows_in() {
+                    info!(session=%self.core.id(), direction = "in", bytes = text.len(), "Clipboard transfer blocked by policy");
+                    return false;
+                }
+                if self.is_vnc {
+                    info!(session=%self.core.id(), direction = "in", bytes = text.len(), "Clipboard transfer");
+                }
+                true
+            }
+            DesktopInput::Key {
+                keysym: Some(keysym),
+                scancode: None,
+                down,
+            } if *keysym >= UNICODE_KEYSYM_BASE => {
+                if !self.clipboard_mode.allows_in() {
+                    return false;
+                }
+                if *down {
+                    self.typed_chars.fetch_add(1, Ordering::Relaxed);
+                }
+                true
+            }
+            _ => {
+                self.flush_typed();
+                true
+            }
+        }
+    }
+
+    /// Logs text typed through the type-it box since the last call.
+    pub fn flush_typed(&self) {
+        let chars = self.typed_chars.swap(0, Ordering::Relaxed);
+        if chars > 0 {
+            info!(session=%self.core.id(), direction = "in", chars, "Text typed into the desktop");
+        }
+    }
+
+    /// MOAVI: applies the target's clipboard policy to text the target copied.
+    pub fn admit_clipboard_out(&self, text: &str) -> bool {
+        if !self.clipboard_mode.allows_out() {
+            info!(session=%self.core.id(), direction = "out", bytes = text.len(), "Clipboard transfer blocked by policy");
+            return false;
+        }
+        if self.is_vnc {
+            info!(session=%self.core.id(), direction = "out", bytes = text.len(), "Clipboard transfer");
+        }
+        true
     }
 
     /// Composite an event into the session's surface. Driven from the manager's event loop

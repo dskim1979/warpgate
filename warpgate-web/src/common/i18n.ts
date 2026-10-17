@@ -122,6 +122,7 @@ const ko: Record<string, string> = {
     'Text is too long to type ({max} characters max).': '글이 너무 깁니다(최대 {max}자).',
     'Copied in the desktop:': '데스크톱에서 복사한 글:',
     'Copy to this PC': '내 PC로 복사',
+    'Pasting into this desktop is turned off.': '이 데스크톱은 붙여넣기가 꺼져 있습니다.',
     'Copied to this PC.': '내 PC에 복사했습니다.',
     'The browser blocked the clipboard. Select the text and press Ctrl+C.': '브라우저가 막았습니다. 글을 선택하고 Ctrl+C를 누르세요.',
     // web terminal file panel

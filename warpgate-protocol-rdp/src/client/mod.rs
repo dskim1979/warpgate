@@ -35,8 +35,8 @@ use ironrdp_tokio::reqwest::ReqwestNetworkClient;
 use ironrdp_tokio::{FramedWrite as _, TokioFramed};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender, unbounded_channel};
-use tracing::{debug, warn};
-use warpgate_common::{RdpTargetAuth, RdpTargetCompression, TargetRdpOptions};
+use tracing::{debug, info, warn};
+use warpgate_common::{RdpTargetAuth, RdpTargetCompression, TargetRdpOptions, WebClipboardMode};
 use warpgate_core::{DesktopEvent, DesktopInput, DesktopRect, DesktopState};
 
 pub(crate) use self::logon::LogonWatcher;
@@ -103,6 +103,7 @@ pub async fn run(
 
     let (clipboard_tx, clipboard_rx) = unbounded_channel();
     let clipboard = Clipboard::deferred(ClientClipboardSink(clipboard_tx));
+    let clipboard_mode = options.web_clipboard;
 
     let (connection_result, framed) = tokio::time::timeout(
         HANDSHAKE_TIMEOUT,
@@ -143,6 +144,7 @@ pub async fn run(
         &clipboard,
         clipboard_rx,
         &logon,
+        clipboard_mode,
     )
     .await
 }
@@ -158,6 +160,7 @@ async fn active_loop(
     clipboard: &Clipboard<ClientClipboardSink>,
     mut clipboard_rx: UnboundedReceiver<ClipboardOut>,
     logon: &LogonWatcher,
+    clipboard_mode: WebClipboardMode,
 ) -> Result<()> {
     let activation_factory = connection_result.activation_factory;
     let mut active_stage = ActiveStageBuilder {
@@ -204,7 +207,15 @@ async fn active_loop(
                 {
                     match input {
                         DesktopInput::Resize { width, height } => resize = Some((width, height)),
-                        DesktopInput::Clipboard(text) => clipboard.offer(text),
+                        DesktopInput::Clipboard(text) => {
+                            // MOAVI: the target's clipboard policy, logged for audit
+                            if clipboard_mode.allows_in() {
+                                info!(direction = "in", bytes = text.len(), "Clipboard transfer");
+                                clipboard.offer(text);
+                            } else {
+                                info!(direction = "in", bytes = text.len(), "Clipboard transfer blocked by policy");
+                            }
+                        }
                         other => input::translate(other, &mut ops),
                     }
                 }
@@ -213,7 +224,7 @@ async fn active_loop(
                 // flushed before the the fastpath messages below
                 // so that clipboard is written before ctrl-v arrives
                 while let Ok(out) = clipboard_rx.try_recv() {
-                    if !handle_clipboard_out(out, &mut framed, &mut active_stage, event_tx, abort_rx)
+                    if !handle_clipboard_out(out, &mut framed, &mut active_stage, event_tx, abort_rx, clipboard_mode)
                         .await?
                     {
                         return Ok(());
@@ -236,7 +247,7 @@ async fn active_loop(
                 let Some(out) = out else {
                     return Ok(());
                 };
-                if !handle_clipboard_out(out, &mut framed, &mut active_stage, event_tx, abort_rx)
+                if !handle_clipboard_out(out, &mut framed, &mut active_stage, event_tx, abort_rx, clipboard_mode)
                     .await?
                 {
                     return Ok(());
@@ -315,6 +326,7 @@ async fn handle_clipboard_out(
     active_stage: &mut ActiveStage,
     event_tx: &Sender<DesktopEvent>,
     abort_rx: &mut UnboundedReceiver<()>,
+    clipboard_mode: WebClipboardMode,
 ) -> Result<bool> {
     match out {
         ClipboardOut::Request(message) => {
@@ -322,6 +334,11 @@ async fn handle_clipboard_out(
             Ok(true)
         }
         ClipboardOut::Text(text) => {
+            if !clipboard_mode.allows_out() {
+                info!(direction = "out", bytes = text.len(), "Clipboard transfer blocked by policy");
+                return Ok(true);
+            }
+            info!(direction = "out", bytes = text.len(), "Clipboard transfer");
             Ok(
                 // false = receiver gone
                 send_event(event_tx, abort_rx, DesktopEvent::Clipboard(text))

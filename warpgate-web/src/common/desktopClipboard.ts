@@ -42,13 +42,28 @@ export class DesktopClipboard {
     // Firefox), so it is retried on subsequent input until it lands.
     private pendingRemoteText: string | null = null
 
+    // MOAVI: the target's clipboard direction policy (the server enforces it too)
+    private allowIn = true
+    private allowOut = true
+
     constructor(
         private readonly sendText: (text: string) => void,
         private readonly sendKey: (key: SyntheticKey, down: boolean) => void,
     ) {}
 
+    setPolicy(allowIn: boolean, allowOut: boolean): void {
+        this.allowIn = allowIn
+        this.allowOut = allowOut
+        if (!allowOut) {
+            this.pendingRemoteText = null
+        }
+    }
+
     // Text the target copied, from the server's `clipboard` message.
     onRemoteCopy(text: string): void {
+        if (!this.allowOut) {
+            return
+        }
         this.pendingRemoteText = text
         this.flush()
     }
@@ -94,7 +109,7 @@ export class DesktopClipboard {
     // MOAVI: paste text from the in-page paste box (no `paste` event involved):
     // set the remote clipboard, then press Ctrl+V on the target.
     pasteText(text: string): void {
-        if (!text) {
+        if (!text || !this.allowIn) {
             return
         }
         this.sendText(text)
@@ -123,7 +138,9 @@ export class DesktopClipboard {
     // remote held previously.
     onPaste(e: ClipboardEvent): void {
         e.preventDefault()
-        const text = e.clipboardData?.getData('text/plain')
+        // With inbound clipboard blocked only the keystroke goes through, pasting
+        // whatever the target itself holds.
+        const text = this.allowIn ? e.clipboardData?.getData('text/plain') : undefined
         // Local text matching the pending write-back is the target's own copy coming
         // straight back — the target already holds it, so just replay the keystroke.
         // Different text means the viewer copied something newer locally (which also
