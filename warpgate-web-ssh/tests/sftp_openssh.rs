@@ -98,7 +98,7 @@ async fn list_upload_download_delete_against_openssh() -> anyhow::Result<()> {
         .collect();
     let file = format!("{dir}/파일 테스트.bin");
     let handle = sftp.open_write(&file).await?;
-    let (tx, mut rx) = mpsc::channel(4);
+    let (tx, mut rx) = mpsc::channel::<Bytes>(4);
     let feeder = {
         let payload = payload.clone();
         tokio::spawn(async move {
@@ -129,7 +129,7 @@ async fn list_upload_download_delete_against_openssh() -> anyhow::Result<()> {
 
     // download returns the same bytes
     let handle = sftp.open_read(&file).await?;
-    let (tx, mut rx) = mpsc::channel(4);
+    let (tx, mut rx) = mpsc::channel::<Bytes>(4);
     let collector = tokio::spawn(async move {
         let mut all = BytesMut::new();
         while let Some(chunk) = rx.recv().await {

@@ -734,7 +734,7 @@ mod tests {
         let file: Bytes = (0..(CHUNK_SIZE * 5 + 123)).map(|i| (i % 251) as u8).collect();
         let client = connect(file.clone()).await?;
         let handle = client.open_read("/f").await?;
-        let (tx, mut rx) = mpsc::channel(4);
+        let (tx, mut rx) = mpsc::channel::<Bytes>(4);
         let collector = tokio::spawn(async move {
             let mut all = BytesMut::new();
             while let Some(chunk) = rx.recv().await {
@@ -754,7 +754,7 @@ mod tests {
     async fn pipelined_upload_writes_every_byte() -> Result<(), SftpError> {
         let client = connect(Bytes::new()).await?;
         let handle = client.open_write("/up").await?;
-        let (tx, mut rx) = mpsc::channel(4);
+        let (tx, mut rx) = mpsc::channel::<Bytes>(4);
         let payload: Bytes = (0..(CHUNK_SIZE * 3 + 7)).map(|i| (i % 13) as u8).collect();
         let feeder = {
             let payload = payload.clone();
