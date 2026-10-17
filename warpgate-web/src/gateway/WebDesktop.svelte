@@ -21,6 +21,7 @@
     import Fa from 'svelte-fa'
     import { loadTheme } from 'theme'
     import { api, ResponseError, type WebDesktopSessionInfo } from './lib/api'
+    import { sessionTabTitle } from './lib/targetTitle'
     import {
         type AccountSwitch,
         accountSwitchFor,
@@ -490,11 +491,13 @@
         startStream()
     })
 
-    const originalTitle = document.title
+    // MOAVI: the tab shows the desktop's name, e.g. "rocky-01 (RDP) · 보안 게이트웨이"
     $effect(() => {
-        const targetName = sessionInfo?.targetName
-        if (targetName) {
-            document.title = `${targetName} - ${originalTitle}`
+        const info = sessionInfo
+        if (info) {
+            sessionTabTitle(info.targetName, info.targetKind).then(title => {
+                document.title = title
+            })
         }
     })
 

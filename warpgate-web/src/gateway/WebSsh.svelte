@@ -35,6 +35,7 @@
         requestedSsoProvider,
     } from './lib/accountSwitch'
     import SshSidePanel from './SshSidePanel.svelte'
+    import { sessionTabTitle } from './lib/targetTitle'
     import {
         ConnectionState,
         ReconnectingWebSocket,
@@ -318,17 +319,14 @@
         startStream()
     })
 
-    const originalTitle = document.title
-    const windowTitle = $derived.by(() => {
-        const activeTerminalTitle = activeChannelId
-            ? channels.get(activeChannelId)?.terminalTitle
-            : undefined
-        const baseTitle = activeTerminalTitle ?? originalTitle
-        const targetName = sessionInfo?.targetName
-        return targetName ? `${targetName} - ${baseTitle}` : baseTitle
-    })
+    // MOAVI: the tab shows the desktop's name, e.g. "rocky-01 (SSH) · 보안 게이트웨이"
     $effect(() => {
-        document.title = windowTitle
+        const info = sessionInfo
+        if (info) {
+            sessionTabTitle(info.targetName, info.targetKind).then(title => {
+                document.title = title
+            })
+        }
     })
 
     onDestroy(() => {

@@ -3,11 +3,12 @@
 Warpgate 0.29.2(Apache-2.0)를 MOAVI Desk의 "보안 게이트웨이"로 쓰기 위해 고친 빌드입니다.
 원본 LICENSE는 그대로 둡니다.
 
-- 이미지: `ghcr.io/dskim1979/warpgate:0.29.2-moavi4` (linux/amd64, `latest` 없음)
+- 이미지: `ghcr.io/dskim1979/warpgate:0.29.2-moavi5` (linux/amd64, `latest` 없음)
   - moavi1: 키보드 수정 + 한국어 화면
   - moavi2: + SSO 자동 시작
   - moavi3: + 다른 계정으로 로그인된 상태에서 바로가기 링크 처리, MOAVI Desk 파비콘·탭 제목
   - moavi4: + 웹 터미널 오른쪽 정보·파일 패널(SFTP 업로드/다운로드)
+  - moavi5: + 웹 세션 탭 제목에 데스크톱 이름
 - 브랜치: `moavi/0.29.2-ko` (태그 `v0.29.2`에서 시작)
 - CI: `.github/workflows/moavi-image.yml` (웹 타입검사 → 키보드 단위 테스트 → 이미지 빌드 → 스모크 테스트 → 푸시)
 
@@ -44,6 +45,9 @@ Warpgate 0.29.2(Apache-2.0)를 MOAVI Desk의 "보안 게이트웨이"로 쓰기 
    - 끄기: SSH 대상 옵션 `web_file_transfer`(기본 true). 관리 API `PUT /@warpgate/admin/api/targets/<id>`의
      `options`(kind `Ssh`)에 `"web_file_transfer": false`. 새 세션부터 적용됩니다.
    - 세션이 다른 클러스터 노드에 있으면 409(단일 노드 전제).
+7. **탭 제목**(moavi5): `warpgate-web/src/gateway/lib/targetTitle.ts`. 웹 데스크톱·웹 터미널 탭은
+   "<데스크톱 이름> (RDP|VNC|SSH) · 보안 게이트웨이". 이름은 대상 설명(description) 첫 줄을 쓰고, 없으면 대상 이름에서
+   앞의 `moavi-`와 뒤의 `-desk_<id>[-ssh|-vnc]`를 뺍니다. 로그인·대상 목록은 "보안 게이트웨이 · MOAVI Desk" 그대로입니다.
 
 ## 새 Warpgate 버전으로 다시 빌드하기
 
