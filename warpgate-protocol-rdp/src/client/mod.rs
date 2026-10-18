@@ -74,6 +74,26 @@ impl ClipboardSink for ClientClipboardSink {
     }
 }
 
+/// clientName sent when the session did not come from a ticket. Never 13 hex chars, so
+/// it can't be mistaken for a ticket binding.
+const DEFAULT_CLIENT_NAME: &str = "warpgate";
+
+/// MOAVI: ClientCoreData clientName for the target connection. A ticket session gets the
+/// first 13 lowercase hex chars of the ticket UUID (hyphens removed), which the target
+/// sees as WTSClientName / %CLIENTNAME%; anything else gets "warpgate".
+pub fn rdp_client_name(ticket_id: Option<uuid::Uuid>) -> String {
+    match ticket_id {
+        Some(ticket_id) => {
+            debug!(binding = "ticket", "RDP clientName bound to the session's ticket");
+            ticket_id.simple().to_string().chars().take(13).collect()
+        }
+        None => {
+            debug!(binding = "none", "RDP clientName left at the default");
+            DEFAULT_CLIENT_NAME.to_owned()
+        }
+    }
+}
+
 /// Connect to `options` and pump the session until it ends or is aborted.
 pub async fn run(
     options: TargetRdpOptions,
@@ -82,6 +102,7 @@ pub async fn run(
     input_rx: Receiver<DesktopInput>,
     mut abort_rx: UnboundedReceiver<()>,
     logon: LogonWatcher,
+    client_name: String,
 ) -> Result<()> {
     event_tx
         .send(DesktopEvent::State(DesktopState::Connecting))
@@ -99,6 +120,7 @@ pub async fn run(
         password.expose_secret(),
         width as u16,
         height as u16,
+        client_name,
     );
 
     let (clipboard_tx, clipboard_rx) = unbounded_channel();
@@ -635,6 +657,7 @@ fn build_config(
     password: &str,
     width: u16,
     height: u16,
+    client_name: String,
 ) -> connector::Config {
     let codec_overrides: &[&str] = match options.compression {
         RdpTargetCompression::RemoteFX => &[],
@@ -670,7 +693,7 @@ fn build_config(
                 codecs,
             }),
         client_build: 0,
-        client_name: "warpgate".to_owned(),
+        client_name,
         client_dir: "C:\\Windows\\System32\\mstscax.dll".to_owned(),
         alternate_shell: String::new(),
         work_dir: String::new(),
@@ -760,6 +783,26 @@ async fn connect(
     }
 
     Ok((connection_result, upgraded_framed))
+}
+
+#[cfg(test)]
+mod client_name_tests {
+    use super::rdp_client_name;
+
+    #[test]
+    fn ticket_session_gets_13_hex_chars_of_the_ticket_uuid() -> Result<(), uuid::Error> {
+        let ticket = uuid::Uuid::parse_str("0F1E2D3C-4B5A-6978-8796-A5B4C3D2E1F0")?;
+        let name = rdp_client_name(Some(ticket));
+        assert_eq!(name, "0f1e2d3c4b5a6");
+        assert_eq!(name.len(), 13);
+        assert!(name.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f')));
+        Ok(())
+    }
+
+    #[test]
+    fn non_ticket_session_keeps_the_default_name() {
+        assert_eq!(rdp_client_name(None), "warpgate");
+    }
 }
 
 #[cfg(test)]

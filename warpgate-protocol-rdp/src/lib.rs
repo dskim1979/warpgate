@@ -81,6 +81,8 @@ pub fn connect(
     size: (u16, u16),
 ) -> Result<DesktopClientHandles, WarpgateError> {
     let target_session_id = admitted.id();
+    // MOAVI: bind the target's clientName to the ticket the session used
+    let client_name = client::rdp_client_name(admitted.ticket_id());
     let (user_info, target) = admitted.into_approved().into_parts();
     let (target, options) = target.into_parts();
     let (event_tx, event_rx) = channel::<DesktopEvent>(1024);
@@ -107,7 +109,7 @@ pub fn connect(
     tokio::spawn(
         async move {
             if let Err(error) =
-                client::run(options, size, event_tx.clone(), input_rx, abort_rx, logon).await
+                client::run(options, size, event_tx.clone(), input_rx, abort_rx, logon, client_name).await
             {
                 let error_chain = format!("{error:#}");
                 error!(%error, %error_chain, "RDP client failed");

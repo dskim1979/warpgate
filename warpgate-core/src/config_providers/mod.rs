@@ -262,6 +262,11 @@ impl<O> ApprovedTarget<O> {
     pub fn into_parts(self) -> (AuthStateUserInfo, SpecificTarget<O>) {
         (self.0.user_info, self.0.target)
     }
+
+    /// MOAVI: the ticket the authorization came from, if any.
+    pub const fn ticket_id(&self) -> Option<Uuid> {
+        self.0.ticket_id()
+    }
 }
 
 impl<O> Deref for ApprovedTarget<O> {

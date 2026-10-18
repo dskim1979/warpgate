@@ -268,6 +268,11 @@ impl<O> AdmittedTarget<O> {
     pub fn into_approved(self) -> ApprovedTarget<O> {
         self.approved
     }
+
+    /// MOAVI: the ticket this session was admitted with, if any.
+    pub const fn ticket_id(&self) -> Option<uuid::Uuid> {
+        self.approved.ticket_id()
+    }
 }
 
 impl AdmittedTarget {

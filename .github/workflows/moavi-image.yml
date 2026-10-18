@@ -13,7 +13,7 @@ permissions:
 
 env:
   IMAGE: ghcr.io/dskim1979/warpgate
-  MOAVI_TAG: 0.29.2-moavi8
+  MOAVI_TAG: 0.29.2-moavi9
   UPSTREAM_IMAGE: ghcr.io/warp-tech/warpgate:0.29.2
 
 concurrency:
@@ -59,7 +59,7 @@ jobs:
       - name: Vendored ironrdp-pdu unit tests
         run: cargo test --manifest-path vendor/ironrdp-pdu/Cargo.toml --features std -- gcc::core_data::client::tests
       - name: warpgate-protocol-rdp keyboardType tests (patched crate in the real build graph)
-        run: cargo test -p warpgate-protocol-rdp -- keyboard_type_tests client::input::tests
+        run: cargo test -p warpgate-protocol-rdp -- keyboard_type_tests client::input::tests client_name_tests
       - name: Hold-screen logo decodes (MOAVI logo.png)
         run: cargo test -p warpgate-desktop-ui --lib
       - name: Target option tests (web_clipboard, web_file_transfer)

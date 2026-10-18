@@ -1,7 +1,7 @@
 > **MOAVI build — modified by MAKUS SYSTEMS.** This is a modified build of Warpgate 0.29.2
 > (Apache-2.0) used as the "보안 게이트웨이" in MOAVI Desk. Changes: Korean Windows
 > `keyboardType` 8 accepted on the RDP port (`vendor/ironrdp-pdu`), Korean web UI
-> (`warpgate-web/src/common/i18n.ts`). Image: `ghcr.io/dskim1979/warpgate:0.29.2-moavi8`.
+> (`warpgate-web/src/common/i18n.ts`). Image: `ghcr.io/dskim1979/warpgate:0.29.2-moavi9`.
 > See `MOAVI.md` and `UPSTREAM.md`. Not affiliated with or endorsed by the Warpgate authors.
 
 <p align="center">

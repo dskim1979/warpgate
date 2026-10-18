@@ -3,7 +3,7 @@
 Warpgate 0.29.2(Apache-2.0)를 MOAVI Desk의 "보안 게이트웨이"로 쓰기 위해 고친 빌드입니다.
 원본 LICENSE는 그대로 둡니다.
 
-- 이미지: `ghcr.io/dskim1979/warpgate:0.29.2-moavi8` (linux/amd64, `latest` 없음)
+- 이미지: `ghcr.io/dskim1979/warpgate:0.29.2-moavi9` (linux/amd64, `latest` 없음)
   - moavi1: 키보드 수정 + 한국어 화면
   - moavi2: + SSO 자동 시작
   - moavi3: + 다른 계정으로 로그인된 상태에서 바로가기 링크 처리, MOAVI Desk 파비콘·탭 제목
@@ -12,6 +12,7 @@ Warpgate 0.29.2(Apache-2.0)를 MOAVI Desk의 "보안 게이트웨이"로 쓰기 
   - moavi6: 설명 끝에 이미 "(RDP)" 같은 프로토콜이 있으면 탭 제목에 두 번 붙이지 않음
   - moavi7: + 웹 데스크톱 "붙여넣기" 상자(붙여넣기 / 직접 입력 / 내 PC로 복사), 클립보드 방향 정책
   - moavi8: RDP 연결 대기 화면 로고를 MOAVI Desk 마크 + "보안 게이트웨이"로
+  - moavi9: 티켓으로 들어온 RDP 세션의 clientName = 티켓 UUID 앞 13자
 - 브랜치: `moavi/0.29.2-ko` (태그 `v0.29.2`에서 시작)
 - CI: `.github/workflows/moavi-image.yml` (웹 타입검사 → 키보드 단위 테스트 → 이미지 빌드 → 스모크 테스트 → 푸시)
 
@@ -67,6 +68,12 @@ Warpgate 0.29.2(Apache-2.0)를 MOAVI Desk의 "보안 게이트웨이"로 쓰기 
    웹 RDP와 mstsc 모두 같은 화면입니다. 화면 글자는 ASCII 글꼴이라 영어로 두고 "Warpgate"만 "security gateway"로 바꿨습니다.
    그 밖의 사용자 화면에서 남은 Warpgate 표시(HTTP 대상 위 떠 있는 버튼 대체 텍스트, API 토큰·접속 방법 문구)도 바꿨습니다.
    Warpgate 이름은 관리자 화면 아래쪽 안내에만 남습니다.
+10. **RDP clientName = 티켓**(moavi9): `warpgate-protocol-rdp/src/client/mod.rs` `rdp_client_name`, `lib.rs` `connect`.
+    티켓(`ticket-<secret>`)으로 인증된 세션이면 대상 Windows로 가는 ClientCoreData clientName을 티켓 UUID에서 하이픈을 뺀
+    소문자 16진수 앞 13자로 보냅니다(예: `0f1e2d3c4b5a6`). Windows에서 `%CLIENTNAME%`/WTSClientName으로 보입니다.
+    티켓이 아니면(SSO·웹 로그인·비밀번호) 그대로 `warpgate`라서 `^[0-9a-f]{13}$`와 절대 맞지 않습니다. 웹 RDP와 mstsc 모두 같습니다.
+    사용자의 mstsc는 이 값에 영향을 줄 수 없습니다(Warpgate가 RDP를 끝내고 새로 연결). 로그는 debug로 `binding=ticket|none`만 남깁니다.
+    티켓 UUID = `POST /@warpgate/admin/api/tickets` 응답 `TicketAndSecret`의 `ticket.id`.
 
 ## 새 Warpgate 버전으로 다시 빌드하기
 
