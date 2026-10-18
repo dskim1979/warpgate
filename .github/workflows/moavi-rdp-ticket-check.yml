@@ -1,0 +1,28 @@
+# MOAVI: quick end-to-end check of the native RDP ticket path against an
+# already-published image (no build). Also runs inside moavi-image.yml.
+name: MOAVI RDP ticket check
+
+on:
+  push:
+    branches: ['moavi/**']
+    paths: ['.github/moavi-rdp-ticket-smoke.sh', '.github/workflows/moavi-rdp-ticket-check.yml']
+  workflow_dispatch:
+    inputs:
+      image:
+        description: Image to test
+        default: ghcr.io/dskim1979/warpgate:0.29.2-moavi9
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb freerdp2-x11 jq
+      - name: Native RDP ticket path
+        run: ./.github/moavi-rdp-ticket-smoke.sh "${{ github.event.inputs.image || 'ghcr.io/dskim1979/warpgate:0.29.2-moavi9' }}"
