@@ -159,10 +159,16 @@ docker exec "$sshd" test ! -e "$home/$name" || fail "file still there"
 r="$(api POST "$files/files/mkdir?dir=$enc_home&name=..")"
 [ "$(status_of "$r")" = 400 ] || fail "'..' accepted: $r"
 
-# transfers are in Warpgate's log
-sleep 1
-docker logs "$wg" 2>&1 | grep -q 'File transfer finished' || fail "transfer not logged"
-docker logs "$wg" 2>&1 | grep 'File transfer' | tail -n 4
+# transfers are in Warpgate's log (read into a file first: `docker logs | grep -q`
+# under pipefail fails when grep exits early and docker logs gets SIGPIPE)
+logged=""
+for _ in $(seq 1 10); do
+    docker logs "$wg" > "$work/wg.log" 2>&1 || true
+    if grep -q 'File transfer finished' "$work/wg.log"; then logged=1; break; fi
+    sleep 1
+done
+[ -n "$logged" ] || fail "transfer not logged"
+grep 'File transfer' "$work/wg.log" | tail -n 4
 
 # turning the flag off closes the panel for new sessions
 r="$(api PUT "/admin/api/targets/$target_id" "$(target_json false)")"
