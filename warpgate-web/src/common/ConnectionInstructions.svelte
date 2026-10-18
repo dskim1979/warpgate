@@ -316,7 +316,7 @@
     <InfoBox class="mb-3">
         The ticket already specifies the target and no other credentials are
         needed. One ticket use opens a session that is shared by requests
-        matching the same source IP and the same Warpgate node for the
+        matching the same source IP and the same gateway node for the
         Kubernetes session lifetime. In a round-robin cluster, at least as many
         uses are needed as there are nodes in the cluster.
     </InfoBox>

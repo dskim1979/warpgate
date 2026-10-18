@@ -93,7 +93,7 @@ pub fn render_authentication(
                         "Approve this session at:\n{url}\n(has been copied to your clipboard)"
                     );
                 }
-                None => text.push_str("Please approve this session in Warpgate first"),
+                None => text.push_str("Please approve this session in the security gateway first"),
             }
             let boxes = CharBoxes {
                 text: security_key,

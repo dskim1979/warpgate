@@ -3,14 +3,15 @@
 Warpgate 0.29.2(Apache-2.0)를 MOAVI Desk의 "보안 게이트웨이"로 쓰기 위해 고친 빌드입니다.
 원본 LICENSE는 그대로 둡니다.
 
-- 이미지: `ghcr.io/dskim1979/warpgate:0.29.2-moavi7` (linux/amd64, `latest` 없음)
+- 이미지: `ghcr.io/dskim1979/warpgate:0.29.2-moavi8` (linux/amd64, `latest` 없음)
   - moavi1: 키보드 수정 + 한국어 화면
   - moavi2: + SSO 자동 시작
   - moavi3: + 다른 계정으로 로그인된 상태에서 바로가기 링크 처리, MOAVI Desk 파비콘·탭 제목
   - moavi4: + 웹 터미널 오른쪽 정보·파일 패널(SFTP 업로드/다운로드)
   - moavi5: + 웹 세션 탭 제목에 데스크톱 이름
   - moavi6: 설명 끝에 이미 "(RDP)" 같은 프로토콜이 있으면 탭 제목에 두 번 붙이지 않음
-  - moavi7: + 웹 데스크톱 "붙여넣기" 상자(붙여넣기 / 직접 입력 / 내 PC로 복사)
+  - moavi7: + 웹 데스크톱 "붙여넣기" 상자(붙여넣기 / 직접 입력 / 내 PC로 복사), 클립보드 방향 정책
+  - moavi8: RDP 연결 대기 화면 로고를 MOAVI Desk 마크 + "보안 게이트웨이"로
 - 브랜치: `moavi/0.29.2-ko` (태그 `v0.29.2`에서 시작)
 - CI: `.github/workflows/moavi-image.yml` (웹 타입검사 → 키보드 단위 테스트 → 이미지 빌드 → 스모크 테스트 → 푸시)
 
@@ -61,6 +62,11 @@ Warpgate 0.29.2(Apache-2.0)를 MOAVI Desk의 "보안 게이트웨이"로 쓰기 
      화면도 따릅니다: in이 꺼지면 붙여넣기·직접 입력·Ctrl+V 글 전달이 없고, out이 꺼지면 "데스크톱에서 복사한 글"과 자동 복사가 없습니다.
      기록: `Clipboard transfer`(direction, bytes), `Clipboard transfer blocked by policy`, `Text typed into the desktop`(chars).
      관리 API `PUT /@warpgate/admin/api/targets/<id>`의 `options`(kind `Rdp`/`Vnc`)에 `"web_clipboard": "in"` 식으로 넣습니다.
+9. **RDP 대기 화면 로고**(moavi8): 데스크톱이 뜨기 전에 RDP 화면에 그리는 대기 화면(연결 중, 승인 대기, 배너, OTP)의 로고
+   `warpgate-desktop-ui/assets/logo.png`(354×90, 배경 #14141a 불투명 RGB)를 MOAVI Desk 마크 + "보안 게이트웨이"로 바꿨습니다.
+   웹 RDP와 mstsc 모두 같은 화면입니다. 화면 글자는 ASCII 글꼴이라 영어로 두고 "Warpgate"만 "security gateway"로 바꿨습니다.
+   그 밖의 사용자 화면에서 남은 Warpgate 표시(HTTP 대상 위 떠 있는 버튼 대체 텍스트, API 토큰·접속 방법 문구)도 바꿨습니다.
+   Warpgate 이름은 관리자 화면 아래쪽 안내에만 남습니다.
 
 ## 새 Warpgate 버전으로 다시 빌드하기
 

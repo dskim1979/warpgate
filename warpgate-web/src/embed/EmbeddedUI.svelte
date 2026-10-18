@@ -98,7 +98,7 @@
         <img
             class="menu-toggle"
             src={logo}
-            alt="Warpgate"
+            alt="MOAVI Desk"
             on:pointerdown|preventDefault={startDragging}
             on:pointermove={drag}
             on:pointerup|stopPropagation|preventDefault={() => {

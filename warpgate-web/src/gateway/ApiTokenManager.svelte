@@ -81,7 +81,7 @@
         {#if tokens.length === 0}
             <EmptyState
                 title="No tokens yet"
-                hint="Tokens let you manage Warpgate programmatically via its API"
+                hint="Tokens let you manage the security gateway programmatically via its API"
             />
         {/if}
 
