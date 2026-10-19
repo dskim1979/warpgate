@@ -45,6 +45,16 @@ pub struct TargetSSHOptions {
     #[serde(default = "_default_true")]
     #[oai(default = "_default_true")]
     pub web_file_transfer: bool,
+
+    /// MOAVI: record this target's sessions. Absent = follow the global recordings switch;
+    /// false = never record this target; true = record while the global switch is on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record: Option<bool>,
+
+    /// MOAVI: record keyboard input in this target's desktop recordings. Absent = follow the
+    /// global record_desktop_keyboard_input parameter.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record_keyboard: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Union)]
@@ -219,6 +229,16 @@ pub struct TargetVncOptions {
     #[serde(default)]
     #[oai(default)]
     pub web_clipboard: WebClipboardMode,
+
+    /// MOAVI: record this target's sessions. Absent = follow the global recordings switch;
+    /// false = never record this target; true = record while the global switch is on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record: Option<bool>,
+
+    /// MOAVI: record keyboard input in this target's desktop recordings. Absent = follow the
+    /// global record_desktop_keyboard_input parameter.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record_keyboard: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Union)]
@@ -325,6 +345,16 @@ pub struct TargetRdpOptions {
     #[serde(default)]
     #[oai(default)]
     pub web_clipboard: WebClipboardMode,
+
+    /// MOAVI: record this target's sessions. Absent = follow the global recordings switch;
+    /// false = never record this target; true = record while the global switch is on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record: Option<bool>,
+
+    /// MOAVI: record keyboard input in this target's desktop recordings. Absent = follow the
+    /// global record_desktop_keyboard_input parameter.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub record_keyboard: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default, Enum)]
@@ -439,6 +469,28 @@ pub enum TargetOptions {
 }
 
 impl TargetOptions {
+    /// MOAVI: this target's own recording switch (None = follow the global one).
+    #[must_use]
+    pub const fn record_override(&self) -> Option<bool> {
+        match self {
+            Self::Ssh(o) => o.record,
+            Self::Rdp(o) => o.record,
+            Self::Vnc(o) => o.record,
+            _ => None,
+        }
+    }
+
+    /// MOAVI: this target's keyboard-input recording switch (None = follow the global one).
+    #[must_use]
+    pub const fn record_keyboard_override(&self) -> Option<bool> {
+        match self {
+            Self::Ssh(o) => o.record_keyboard,
+            Self::Rdp(o) => o.record_keyboard,
+            Self::Vnc(o) => o.record_keyboard,
+            _ => None,
+        }
+    }
+
     pub fn protocol(&self) -> Protocol {
         match self {
             TargetOptions::Ssh(_) => Protocol::Ssh,
@@ -531,6 +583,26 @@ mod moavi_tests {
         }
         let ssh: TargetSSHOptions = serde_json::from_str(r#"{"host":"h"}"#)?;
         assert!(ssh.web_file_transfer);
+        Ok(())
+    }
+
+    #[test]
+    fn record_switches_are_optional_and_round_trip() -> serde_json::Result<()> {
+        use super::TargetOptions;
+        // absent = follow the global switches, and stays absent when written back
+        let rdp: TargetRdpOptions = serde_json::from_str(r#"{"host":"h"}"#)?;
+        assert_eq!((rdp.record, rdp.record_keyboard), (None, None));
+        assert!(!serde_json::to_string(&rdp)?.contains("record"));
+        let rdp: TargetRdpOptions =
+            serde_json::from_str(r#"{"host":"h","record":false,"record_keyboard":true}"#)?;
+        assert_eq!((rdp.record, rdp.record_keyboard), (Some(false), Some(true)));
+        let opts = TargetOptions::Rdp(rdp);
+        assert_eq!(opts.record_override(), Some(false));
+        assert_eq!(opts.record_keyboard_override(), Some(true));
+        let vnc: TargetVncOptions = serde_json::from_str(r#"{"host":"h","record":true}"#)?;
+        assert_eq!(TargetOptions::Vnc(vnc).record_override(), Some(true));
+        let ssh: TargetSSHOptions = serde_json::from_str(r#"{"host":"h","record":false}"#)?;
+        assert_eq!(TargetOptions::Ssh(ssh).record_override(), Some(false));
         Ok(())
     }
 }

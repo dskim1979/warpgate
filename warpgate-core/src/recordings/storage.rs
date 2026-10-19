@@ -125,6 +125,17 @@ impl FileAccess {
     }
 }
 
+/// MOAVI: what the recordings take up (GET /recordings-storage/usage).
+#[derive(Debug, Clone, Default)]
+pub struct StorageUsage {
+    pub count: u64,
+    pub bytes: u64,
+    pub oldest: Option<time::OffsetDateTime>,
+    /// Disk backend only: free and total space of the filesystem holding the recordings.
+    pub free_bytes: Option<u64>,
+    pub total_bytes: Option<u64>,
+}
+
 /// The effective recordings storage, loaded live from the parameters table so a
 /// config change takes effect on the next recording / read. Owns the disk-vs-S3
 /// decisions so callers never inspect the backend themselves.
@@ -209,6 +220,30 @@ impl Storage {
         }
     }
 
+    /// MOAVI: bytes used by recordings (disk: the files under the root; S3: the objects
+    /// under the prefix) and, on disk, the filesystem's free/total space.
+    pub(crate) async fn usage(&self) -> Result<StorageUsage> {
+        match &self.backend {
+            Backend::S3(s3) => Ok(StorageUsage {
+                bytes: s3.total_size().await?,
+                ..Default::default()
+            }),
+            Backend::Disk => {
+                let bytes = dir_size(&self.local_root).await?;
+                let (free_bytes, total_bytes) = match fs_space(&self.local_root) {
+                    Some((free, total)) => (Some(free), Some(total)),
+                    None => (None, None),
+                };
+                Ok(StorageUsage {
+                    bytes,
+                    free_bytes,
+                    total_bytes,
+                    ..Default::default()
+                })
+            }
+        }
+    }
+
     /// Delete a recording's files from this storage — its S3 objects (if any)
     /// and the local folder (best-effort; on S3 the scratch is already gone).
     pub(crate) async fn remove(&self, session_id: &TargetSessionId, name: &str) -> Result<()> {
@@ -248,6 +283,58 @@ impl Storage {
         }
         Ok(())
     }
+}
+
+/// MOAVI: total size of the regular files under `root` (0 if it does not exist yet).
+/// Symlinks are not followed.
+async fn dir_size(root: &Path) -> Result<u64> {
+    let mut total = 0u64;
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let mut entries = match tokio::fs::read_dir(&dir).await {
+            Ok(entries) => entries,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(e) => return Err(e.into()),
+        };
+        while let Some(entry) = entries.next_entry().await? {
+            let meta = tokio::fs::symlink_metadata(entry.path()).await?;
+            if meta.is_dir() {
+                stack.push(entry.path());
+            } else if meta.is_file() {
+                total = total.saturating_add(meta.len());
+            }
+        }
+    }
+    Ok(total)
+}
+
+/// MOAVI: (free, total) bytes of the filesystem holding `path` (its nearest existing
+/// ancestor), or None where statvfs is unavailable.
+#[cfg(unix)]
+fn fs_space(path: &Path) -> Option<(u64, u64)> {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+
+    let mut probe = path;
+    while !probe.exists() {
+        probe = probe.parent()?;
+    }
+    let c_path = CString::new(probe.as_os_str().as_bytes()).ok()?;
+    let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
+    // SAFETY: c_path is a valid NUL-terminated path and stat is a valid out-pointer.
+    if unsafe { libc::statvfs(c_path.as_ptr(), &raw mut stat) } != 0 {
+        return None;
+    }
+    #[allow(clippy::useless_conversion)]
+    let frsize = u64::from(stat.f_frsize);
+    #[allow(clippy::useless_conversion)]
+    let (avail, blocks) = (u64::from(stat.f_bavail), u64::from(stat.f_blocks));
+    Some((avail.saturating_mul(frsize), blocks.saturating_mul(frsize)))
+}
+
+#[cfg(not(unix))]
+fn fs_space(_path: &Path) -> Option<(u64, u64)> {
+    None
 }
 
 /// Path of a recording file relative to a storage root, shared by the local

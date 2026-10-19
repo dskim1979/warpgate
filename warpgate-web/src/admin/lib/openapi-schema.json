@@ -270,6 +270,75 @@
           }
         ],
         "operationId": "get_recording"
+      },
+      "delete": {
+        "summary": "MOAVI: delete a recording - its files (disk folder or S3 objects) and its row.",
+        "description": "409 while it is still being recorded.",
+        "parameters": [
+          {
+            "name": "id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "required": true,
+            "deprecated": false,
+            "explode": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "The recording is still being written (its session is open)."
+          }
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          },
+          {
+            "ClusterTokenSecurityScheme": []
+          }
+        ],
+        "operationId": "delete_recording"
+      }
+    },
+    "/recordings-storage/usage": {
+      "get": {
+        "summary": "MOAVI: recordings count, bytes, oldest start, and (disk backend) free/total space.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json; charset=utf-8": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingsStorageUsage"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "TokenSecurityScheme": []
+          },
+          {
+            "CookieSecurityScheme": []
+          },
+          {
+            "ClusterTokenSecurityScheme": []
+          }
+        ],
+        "operationId": "get_recordings_storage_usage"
       }
     },
     "/roles": {
@@ -6439,6 +6508,37 @@
           }
         ]
       },
+      "RecordingsStorageUsage": {
+        "type": "object",
+        "title": "RecordingsStorageUsage",
+        "description": "MOAVI: what the recordings take up. free/total are set for the disk backend only.",
+        "required": [
+          "count",
+          "bytes"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "uint64"
+          },
+          "bytes": {
+            "type": "integer",
+            "format": "uint64"
+          },
+          "oldest": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "free_bytes": {
+            "type": "integer",
+            "format": "uint64"
+          },
+          "total_bytes": {
+            "type": "integer",
+            "format": "uint64"
+          }
+        }
+      },
       "RejectSessionRequest": {
         "type": "object",
         "title": "RejectSessionRequest",
@@ -7405,6 +7505,14 @@
           },
           "web_clipboard": {
             "$ref": "#/components/schemas/WebClipboardMode"
+          },
+          "record": {
+            "type": "boolean",
+            "description": "MOAVI: record this target's sessions. Absent = follow the global recordings switch;\nfalse = never record this target; true = record while the global switch is on."
+          },
+          "record_keyboard": {
+            "type": "boolean",
+            "description": "MOAVI: record keyboard input in this target's desktop recordings. Absent = follow the\nglobal record_desktop_keyboard_input parameter."
           }
         }
       },
@@ -7443,6 +7551,14 @@
             "type": "boolean",
             "description": "MOAVI: allow the web terminal's file panel (SFTP upload/download) for this target.",
             "default": true
+          },
+          "record": {
+            "type": "boolean",
+            "description": "MOAVI: record this target's sessions. Absent = follow the global recordings switch;\nfalse = never record this target; true = record while the global switch is on."
+          },
+          "record_keyboard": {
+            "type": "boolean",
+            "description": "MOAVI: record keyboard input in this target's desktop recordings. Absent = follow the\nglobal record_desktop_keyboard_input parameter."
           }
         }
       },
@@ -7518,6 +7634,14 @@
           },
           "web_clipboard": {
             "$ref": "#/components/schemas/WebClipboardMode"
+          },
+          "record": {
+            "type": "boolean",
+            "description": "MOAVI: record this target's sessions. Absent = follow the global recordings switch;\nfalse = never record this target; true = record while the global switch is on."
+          },
+          "record_keyboard": {
+            "type": "boolean",
+            "description": "MOAVI: record keyboard input in this target's desktop recordings. Absent = follow the\nglobal record_desktop_keyboard_input parameter."
           }
         }
       },

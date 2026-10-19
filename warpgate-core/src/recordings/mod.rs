@@ -3,7 +3,10 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
 
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
+    QueryOrder,
+};
 use serde::Serialize;
 use time::OffsetDateTime;
 use tokio::sync::{Mutex, broadcast};
@@ -12,8 +15,8 @@ use tokio_util::task::TaskTracker;
 use tracing::{info, warn};
 use uuid::Uuid;
 use warpgate_common::helpers::fs::secure_directory;
-use warpgate_common::{GlobalParams, TargetSessionId};
-use warpgate_db_entities::Parameters;
+use warpgate_common::{GlobalParams, Target, TargetSessionId};
+use warpgate_db_entities::{Parameters, TargetSession};
 use warpgate_db_entities::Recording::{self, RecordingKind};
 mod desktop;
 mod storage;
@@ -21,7 +24,7 @@ mod terminal;
 mod traffic;
 mod writer;
 pub use desktop::*;
-pub use storage::FileAccess;
+pub use storage::{FileAccess, StorageUsage};
 use storage::Storage;
 pub use terminal::*;
 pub use traffic::*;
@@ -148,6 +151,29 @@ impl RecordingWriterOpener {
     }
 }
 
+/// MOAVI: a target's own recording switches (`record`, `record_keyboard` in its options),
+/// read from the target snapshot of the session. `None` = follow the global setting; also
+/// `None` when the session or its snapshot cannot be read, so a lookup problem never turns
+/// recording off silently.
+pub(crate) async fn target_overrides(
+    db: &DatabaseConnection,
+    id: &TargetSessionId,
+) -> (Option<bool>, Option<bool>) {
+    let Ok(Some(session)) = TargetSession::Entity::find_by_id(*id).one(db).await else {
+        return (None, None);
+    };
+    match serde_json::from_str::<Target>(&session.target_snapshot) {
+        Ok(target) => (
+            target.options.record_override(),
+            target.options.record_keyboard_override(),
+        ),
+        Err(error) => {
+            warn!(%error, session=%id, "Could not read the target snapshot for its recording switches");
+            (None, None)
+        }
+    }
+}
+
 pub trait Recorder
 where
     Self: Sized,
@@ -202,6 +228,12 @@ impl SessionRecordings {
         Ok(Parameters::Entity::get(&self.db).await?.recordings_enable)
     }
 
+    /// MOAVI: will this session's channels be recorded - the global switch, and the
+    /// target's own `record` switch not saying false.
+    pub async fn will_record(&self, id: &TargetSessionId) -> Result<bool> {
+        Ok(self.is_enabled().await? && target_overrides(&self.db, id).await.0 != Some(false))
+    }
+
     /// Starting a recording with the same name again will append to it
     pub async fn start<T, M>(
         &self,
@@ -215,6 +247,12 @@ impl SessionRecordings {
     {
         let storage = self.storage().await?;
         if !storage.enabled() {
+            return Err(Error::Disabled);
+        }
+        // MOAVI: the global switch is the master; a target can still opt out for itself.
+        // Every caller treats Disabled as "no recording" (no file, no Recording row).
+        if target_overrides(&self.db, id).await.0 == Some(false) {
+            info!(session=%id, "Recording off for this target");
             return Err(Error::Disabled);
         }
 
@@ -275,6 +313,27 @@ impl SessionRecordings {
     pub async fn subscribe_live(&self, id: &Uuid) -> Option<broadcast::Receiver<LiveChunk>> {
         let live = self.live.lock().await;
         live.get(id).map(broadcast::Sender::subscribe)
+    }
+
+    /// MOAVI: is this recording still being written on this node?
+    pub async fn is_live(&self, recording_id: &Uuid) -> bool {
+        self.live.lock().await.contains_key(recording_id)
+    }
+
+    /// MOAVI: how much the recordings take: row count and the oldest start from the DB,
+    /// bytes from the storage (files on disk, objects on S3), and the disk's free/total
+    /// space for the disk backend (None on S3).
+    pub async fn usage(&self) -> Result<StorageUsage> {
+        let count = Recording::Entity::find().count(&self.db).await?;
+        let oldest = Recording::Entity::find()
+            .order_by_asc(Recording::Column::Started)
+            .one(&self.db)
+            .await?
+            .map(|r| r.started);
+        let mut usage = self.storage().await?.usage().await?;
+        usage.count = count;
+        usage.oldest = oldest;
+        Ok(usage)
     }
 
     pub async fn remove(&self, session_id: &TargetSessionId, name: &str) -> Result<()> {

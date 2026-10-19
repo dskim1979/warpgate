@@ -9,9 +9,10 @@ use poem::web::websocket::{Message, WebSocket, WebSocketStream};
 use poem::web::{Data, Redirect, StaticFileRequest};
 use poem::{IntoResponse, handler};
 use poem_openapi::payload::Json;
-use poem_openapi::{ApiResponse, OpenApi};
+use poem_openapi::{ApiResponse, Object, OpenApi};
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use serde::Serialize;
+use time::OffsetDateTime;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, BufReader};
 use tokio::sync::broadcast;
 use tracing::error;
@@ -34,6 +35,46 @@ enum GetRecordingResponse {
     Ok(Json<Recording::Model>),
     #[oai(status = 404)]
     NotFound,
+}
+
+/// MOAVI: deleting one recording (retention, storage housekeeping).
+#[derive(ApiResponse)]
+enum DeleteRecordingResponse {
+    #[oai(status = 204)]
+    Deleted,
+    #[oai(status = 404)]
+    NotFound,
+    /// The recording is still being written (its session is open).
+    #[oai(status = 409)]
+    InProgress,
+}
+
+/// MOAVI: what the recordings take up. free/total are set for the disk backend only.
+#[derive(Object)]
+struct RecordingsStorageUsage {
+    count: u64,
+    bytes: u64,
+    oldest: Option<OffsetDateTime>,
+    free_bytes: Option<u64>,
+    total_bytes: Option<u64>,
+}
+
+/// A recording still being written: live on this node, or (cluster) not finished and its
+/// session still open on some node.
+async fn recording_in_progress(
+    admin: &ClusterOrAdminContext,
+    recording: &Recording::Model,
+) -> Result<bool, sea_orm::DbErr> {
+    if admin.services().recordings.is_live(&recording.id).await {
+        return Ok(true);
+    }
+    if recording.ended.is_some() {
+        return Ok(false);
+    }
+    Ok(TargetSession::Entity::find_by_id(recording.session_id)
+        .one(&admin.services().db)
+        .await?
+        .is_some_and(|s| s.ended.is_none()))
 }
 
 #[OpenApi]
@@ -61,6 +102,76 @@ impl Api {
             Some(recording) => Ok(GetRecordingResponse::Ok(Json(recording))),
             None => Ok(GetRecordingResponse::NotFound),
         }
+    }
+
+    /// MOAVI: delete a recording - its files (disk folder or S3 objects) and its row.
+    /// 409 while it is still being recorded.
+    #[oai(
+        path = "/recordings/:id",
+        method = "delete",
+        operation_id = "delete_recording"
+    )]
+    async fn api_delete_recording(
+        &self,
+        admin: ClusterOrAdminContext,
+        id: poem_openapi::param::Path<Uuid>,
+    ) -> poem::Result<DeleteRecordingResponse> {
+        admin.require(AdminPermission::ConfigEdit)?;
+
+        let db = &admin.services().db;
+        let Some(recording) = Recording::Entity::find_by_id(id.0)
+            .one(db)
+            .await
+            .map_err(InternalServerError)?
+        else {
+            return Ok(DeleteRecordingResponse::NotFound);
+        };
+        if recording_in_progress(&admin, &recording)
+            .await
+            .map_err(InternalServerError)?
+        {
+            return Ok(DeleteRecordingResponse::InProgress);
+        }
+
+        admin
+            .services()
+            .recordings
+            .remove(&recording.session_id, &recording.name)
+            .await
+            .map_err(InternalServerError)?;
+        Recording::Entity::delete_by_id(recording.id)
+            .exec(db)
+            .await
+            .map_err(InternalServerError)?;
+        tracing::info!(recording=%recording.id, session=%recording.session_id, "Recording deleted");
+        Ok(DeleteRecordingResponse::Deleted)
+    }
+
+    /// MOAVI: recordings count, bytes, oldest start, and (disk backend) free/total space.
+    #[oai(
+        path = "/recordings-storage/usage",
+        method = "get",
+        operation_id = "get_recordings_storage_usage"
+    )]
+    async fn api_get_recordings_storage_usage(
+        &self,
+        admin: ClusterOrAdminContext,
+    ) -> poem::Result<Json<RecordingsStorageUsage>> {
+        admin.require(AdminPermission::RecordingsView)?;
+
+        let usage = admin
+            .services()
+            .recordings
+            .usage()
+            .await
+            .map_err(InternalServerError)?;
+        Ok(Json(RecordingsStorageUsage {
+            count: usage.count,
+            bytes: usage.bytes,
+            oldest: usage.oldest,
+            free_bytes: usage.free_bytes,
+            total_bytes: usage.total_bytes,
+        }))
     }
 }
 

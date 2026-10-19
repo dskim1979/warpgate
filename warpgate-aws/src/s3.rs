@@ -171,6 +171,32 @@ impl S3Storage {
     }
 
     /// Best-effort delete; S3 treats a missing key as success.
+    /// MOAVI: total size of the objects under this storage's prefix (recordings usage).
+    pub async fn total_size(&self) -> Result<u64, AwsError> {
+        let prefix = format!("{}/", self.prefix_no_trailing_slash());
+        let mut total = 0u64;
+        let mut token: Option<String> = None;
+        loop {
+            let mut request = self
+                .client
+                .list_objects_v2()
+                .bucket(&self.bucket)
+                .prefix(&prefix);
+            if let Some(t) = &token {
+                request = request.continuation_token(t);
+            }
+            let output = request.send().await.map_err(AwsError::sdk_error)?;
+            for object in output.contents() {
+                total = total.saturating_add(u64::try_from(object.size().unwrap_or(0)).unwrap_or(0));
+            }
+            match output.next_continuation_token() {
+                Some(next) if output.is_truncated().unwrap_or(false) => token = Some(next.to_string()),
+                _ => break,
+            }
+        }
+        Ok(total)
+    }
+
     pub async fn delete(&self, path: &str) -> Result<(), AwsError> {
         self.client
             .delete_object()

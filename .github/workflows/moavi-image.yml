@@ -62,7 +62,7 @@ jobs:
         run: cargo test -p warpgate-protocol-rdp -- keyboard_type_tests client::input::tests client_name_tests
       - name: Hold-screen logo decodes (MOAVI logo.png)
         run: cargo test -p warpgate-desktop-ui --lib
-      - name: Target option tests (web_clipboard, web_file_transfer)
+      - name: Target option tests (web_clipboard, web_file_transfer, record)
         run: cargo test -p warpgate-common -- moavi_tests
       - name: web-SSH file panel tests (SFTP client, incl. a real OpenSSH server)
         env:
@@ -115,7 +115,7 @@ jobs:
       - name: Install smoke-test tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq xvfb freerdp2-x11 jq
+          sudo apt-get install -y -qq xvfb freerdp2-x11 jq sshpass
 
       - name: Smoke test (starts, /@warpgate 200, Korean UI, RDP keyboardType 8)
         run: |
@@ -127,6 +127,9 @@ jobs:
 
       - name: Native RDP ticket path end-to-end (clientName = ticket)
         run: ./.github/moavi-rdp-ticket-smoke.sh "$IMAGE:$MOAVI_TAG"
+
+      - name: Recordings - per-target switch, delete, storage usage (OpenSSH target)
+        run: ./.github/moavi-recordings-smoke.sh "$IMAGE:$MOAVI_TAG"
 
       - name: Control - upstream 0.29.2 rejects keyboardType 8 (informational)
         continue-on-error: true

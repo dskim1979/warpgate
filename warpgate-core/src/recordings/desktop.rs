@@ -626,9 +626,18 @@ impl Recorder for DesktopRecorder {
             started_at: Instant::now(),
             state: Arc::new(Mutex::new(RecorderState::default())),
             sign_in: OnceLock::new(),
-            record_keyboard: Parameters::Entity::get(&opener.db)
-                .await?
-                .record_desktop_keyboard_input,
+            // MOAVI: the target's record_keyboard wins over the global parameter
+            record_keyboard: match super::target_overrides(&opener.db, &opener.model.session_id)
+                .await
+                .1
+            {
+                Some(on) => on,
+                None => {
+                    Parameters::Entity::get(&opener.db)
+                        .await?
+                        .record_desktop_keyboard_input
+                }
+            },
         })
     }
 }

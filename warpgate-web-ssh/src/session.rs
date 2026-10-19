@@ -114,7 +114,12 @@ impl WebSshSession {
     }
 
     pub async fn recording_enabled(&self) -> bool {
-        self.recordings.is_enabled().await.unwrap_or(false)
+        // MOAVI: also honours the target's own record switch, so the panel never says
+        // "recorded" for a target that opted out
+        self.recordings
+            .will_record(&self.target_session_id)
+            .await
+            .unwrap_or(false)
     }
 
     /// Hands channel output to its SFTP client. Returns false for terminal channels.

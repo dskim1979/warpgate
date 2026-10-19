@@ -59,3 +59,7 @@ zune-jpeg.workspace = true
 postgres = ["sea-orm/sqlx-postgres"]
 mysql = ["sea-orm/sqlx-mysql"]
 sqlite = ["sea-orm/sqlx-sqlite"]
+
+[target.'cfg(unix)'.dependencies]
+# MOAVI: statvfs for the recordings-storage usage (free/total space of the disk backend)
+libc = "0.2"

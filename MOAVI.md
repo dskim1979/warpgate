@@ -74,6 +74,18 @@ Warpgate 0.29.2(Apache-2.0)를 MOAVI Desk의 "보안 게이트웨이"로 쓰기 
     티켓이 아니면(SSO·웹 로그인·비밀번호) 그대로 `warpgate`라서 `^[0-9a-f]{13}$`와 절대 맞지 않습니다. 웹 RDP와 mstsc 모두 같습니다.
     사용자의 mstsc는 이 값에 영향을 줄 수 없습니다(Warpgate가 RDP를 끝내고 새로 연결). 로그는 debug로 `binding=ticket|none`만 남깁니다.
     티켓 UUID = `POST /@warpgate/admin/api/tickets` 응답 `TicketAndSecret`의 `ticket.id`.
+11. **대상별 녹화 · 녹화 삭제 · 저장소 사용량**(moavi10), MOAVI Desk 풀 정책 "녹화"용.
+    - 대상 `options`(kind `Ssh`/`Rdp`/`Vnc`)의 선택 필드 `record`, `record_keyboard`(bool).
+      `record`: 없으면 전역 `recordings_enable`을 따름, `false`면 전역이 켜져 있어도 이 대상은 녹화 파일·Recording 행을
+      만들지 않음, `true`면 전역이 켜져 있을 때 녹화(전역이 마스터 스위치). `record_keyboard`: 없으면 전역
+      `record_desktop_keyboard_input`. 판정은 세션의 대상 스냅샷으로 `recordings::start` 한 곳에서 합니다
+      (SSH·mstsc RDP/VNC·웹 RDP·웹 SSH 모두). 웹 SSH 정보 패널의 `recording`도 이 값을 따릅니다.
+    - `DELETE /@warpgate/admin/api/recordings/{id}`: 녹화 파일(디스크 폴더 또는 S3 객체)과 DB 행을 지움. 204.
+      아직 기록 중이면(이 노드에서 쓰는 중, 또는 끝나지 않았고 세션이 열려 있음) 409, 없으면 404. 권한 `config_edit`.
+    - `GET /@warpgate/admin/api/recordings-storage/usage` → `{count, bytes, oldest, free_bytes, total_bytes}`.
+      count·oldest는 DB, bytes는 디스크 파일 합계 또는 S3 접두사 아래 객체 합계, free/total은 디스크 백엔드만(S3는 null).
+      권한 `recordings_view`.
+    - CI: `.github/moavi-recordings-smoke.sh`(OpenSSH 대상, ticket ssh로 녹화 생김/안 생김, 409/204, 파일 삭제, 사용량).
 
 ## 새 Warpgate 버전으로 다시 빌드하기
 
