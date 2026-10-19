@@ -76,7 +76,7 @@ r="$(api POST /api/auth/login "$(jq -nc --arg p "$pw" '{username:"admin", passwo
 [ "$(status_of "$r")" -lt 300 ] || fail "admin login: $r"
 
 # ---- the contract is visible in the served OpenAPI document
-spec="$(curl -skf "$base/admin/api/openapi.json")" || fail "openapi.json"
+spec="$(curl -skf -b "$jar" "$base/admin/api/openapi.json")" || fail "openapi.json"
 for schema in TargetRdpOptions TargetSSHOptions TargetVncOptions; do
     jq -e --arg s "$schema" '.components.schemas[$s].properties.record.type == "boolean"
         and .components.schemas[$s].properties.record_keyboard.type == "boolean"' <<<"$spec" >/dev/null \
