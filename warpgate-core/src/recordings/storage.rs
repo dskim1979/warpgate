@@ -244,6 +244,27 @@ impl Storage {
         }
     }
 
+    /// MOAVI: bytes one recording takes: its folder (or gen-1 file) on disk, or its objects
+    /// on S3. Files still in the local scratch on S3 are counted once they are uploaded.
+    pub(crate) async fn recording_size(&self, recording: &Recording::Model) -> Result<u64> {
+        match &self.backend {
+            Backend::S3(s3) => {
+                let base = format!("{}/{}", recording.session_id, recording.name);
+                let path = if recording.generation >= 2 { format!("{base}/") } else { base };
+                Ok(s3.size_under(&path).await?)
+            }
+            Backend::Disk => {
+                let path = self.recording_folder(&recording.session_id, &recording.name);
+                match tokio::fs::symlink_metadata(&path).await {
+                    Ok(meta) if meta.is_dir() => dir_size(&path).await,
+                    Ok(meta) => Ok(meta.len()),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(0),
+                    Err(e) => Err(e.into()),
+                }
+            }
+        }
+    }
+
     /// Delete a recording's files from this storage — its S3 objects (if any)
     /// and the local folder (best-effort; on S3 the scratch is already gone).
     pub(crate) async fn remove(&self, session_id: &TargetSessionId, name: &str) -> Result<()> {
@@ -370,6 +391,7 @@ mod tests {
             kind: RecordingKind::Terminal,
             metadata: "{}".into(),
             generation,
+            size_bytes: None,
         }
     }
 

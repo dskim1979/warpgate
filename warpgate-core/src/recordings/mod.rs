@@ -146,6 +146,7 @@ impl RecordingWriterOpener {
                 token: self.shutdown.clone(),
                 tracker: self.shutdown_tracker.clone(),
             },
+            self.params.clone(),
         )
         .await
     }
@@ -313,6 +314,38 @@ impl SessionRecordings {
     pub async fn subscribe_live(&self, id: &Uuid) -> Option<broadcast::Receiver<LiveChunk>> {
         let live = self.live.lock().await;
         live.get(id).map(broadcast::Sender::subscribe)
+    }
+
+    /// MOAVI: an ended recording without a stored size (rows from before size_bytes, or a
+    /// write that could not measure it) gets it measured and stored now. Recordings still in
+    /// progress stay null. Never fails the caller: on error the row is returned unchanged.
+    pub async fn with_size(&self, recording: Recording::Model) -> Recording::Model {
+        if recording.ended.is_none() || recording.size_bytes.is_some() {
+            return recording;
+        }
+        let Ok(storage) = self.storage().await else {
+            return recording;
+        };
+        let Some(bytes) = storage
+            .recording_size(&recording)
+            .await
+            .ok()
+            .and_then(|b| i64::try_from(b).ok())
+        else {
+            return recording;
+        };
+        let mut active: Recording::ActiveModel = recording.clone().into();
+        active.size_bytes = sea_orm::ActiveValue::Set(Some(bytes));
+        match active.update(&self.db).await {
+            Ok(updated) => updated,
+            Err(error) => {
+                warn!(%error, recording=%recording.id, "Could not store the recording size");
+                Recording::Model {
+                    size_bytes: Some(bytes),
+                    ..recording
+                }
+            }
+        }
     }
 
     /// MOAVI: is this recording still being written on this node?

@@ -37,6 +37,9 @@ pub struct Model {
     /// terminal recordings too. Defaults to 1 for rows created before the folder layout.
     #[sea_orm(default_value = 1)]
     pub generation: i32,
+    /// MOAVI: bytes the recording takes in storage (all its files, disk or S3). Set when
+    /// it ends; null while it is in progress.
+    pub size_bytes: Option<i64>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]

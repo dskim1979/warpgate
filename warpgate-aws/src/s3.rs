@@ -173,7 +173,13 @@ impl S3Storage {
     /// Best-effort delete; S3 treats a missing key as success.
     /// MOAVI: total size of the objects under this storage's prefix (recordings usage).
     pub async fn total_size(&self) -> Result<u64, AwsError> {
-        let prefix = format!("{}/", self.prefix_no_trailing_slash());
+        self.size_under("").await
+    }
+
+    /// MOAVI: total size of the objects whose key starts with `path` under this storage's
+    /// prefix (one recording: `<session>/<name>/`).
+    pub async fn size_under(&self, path: &str) -> Result<u64, AwsError> {
+        let prefix = self.key(path);
         let mut total = 0u64;
         let mut token: Option<String> = None;
         loop {

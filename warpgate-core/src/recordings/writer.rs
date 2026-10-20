@@ -10,10 +10,10 @@ use tokio::sync::{RwLock, broadcast, mpsc};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 use tracing::error;
-use warpgate_common::try_block;
+use warpgate_common::{GlobalParams, try_block};
 use warpgate_db_entities::Recording;
 
-use super::storage::RecordingSink;
+use super::storage::{RecordingSink, Storage};
 use super::{Error, LiveMap, Result};
 
 pub struct WriterShutdown {
@@ -61,6 +61,7 @@ impl RawRecordingWriter {
         db: DatabaseConnection,
         live: Option<LiveMap>,
         shutdown: WriterShutdown,
+        params: GlobalParams,
     ) -> Result<Self> {
         let (sender, mut receiver) = mpsc::channel::<Bytes>(RECORDING_QUEUE_CAPACITY);
         let (drop_signal, mut drop_receiver) = mpsc::channel(1);
@@ -129,8 +130,21 @@ impl RawRecordingWriter {
                     .one(db)
                     .await?
                     .ok_or_else(|| anyhow::anyhow!("Recording not found"))?;
+                // MOAVI: the recording's size in storage, all files. Each file's writer
+                // ends here and recomputes the total, so the last one stores the full size.
+                let size_bytes = match Storage::load(db, &params).await {
+                    Ok(storage) => storage
+                        .recording_size(&recording)
+                        .await
+                        .ok()
+                        .and_then(|bytes| i64::try_from(bytes).ok()),
+                    Err(_) => None,
+                };
                 let mut model: Recording::ActiveModel = recording.into();
                 model.ended = Set(Some(OffsetDateTime::now_utc()));
+                if size_bytes.is_some() {
+                    model.size_bytes = Set(size_bytes);
+                }
                 model.update(db).await?;
 
                 drop(cleanup_guard);

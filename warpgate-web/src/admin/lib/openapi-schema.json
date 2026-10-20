@@ -6419,6 +6419,11 @@
             "type": "integer",
             "format": "int32",
             "description": "Storage layout: 1 = single legacy file, 2 = folder (`data.ndjson`, plus an\n`index.ndjson` for desktop recordings), 3 = folder with an `index.ndjson` for\nterminal recordings too. Defaults to 1 for rows created before the folder layout."
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "MOAVI: bytes the recording takes in storage (all its files, disk or S3). Set when\nit ends; null while it is in progress."
           }
         }
       },

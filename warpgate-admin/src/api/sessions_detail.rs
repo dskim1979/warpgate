@@ -92,7 +92,12 @@ impl Api {
                 .all(db)
                 .await?
         };
-        Ok(GetSessionRecordingsResponse::Ok(Json(recordings)))
+        // MOAVI: size_bytes for ended rows that do not have it yet
+        let mut sized = Vec::with_capacity(recordings.len());
+        for recording in recordings {
+            sized.push(admin.services().recordings.with_size(recording).await);
+        }
+        Ok(GetSessionRecordingsResponse::Ok(Json(sized)))
     }
 
     #[oai(

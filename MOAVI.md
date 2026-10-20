@@ -86,6 +86,10 @@ Warpgate 0.29.2(Apache-2.0)를 MOAVI Desk의 "보안 게이트웨이"로 쓰기 
       count·oldest는 DB, bytes는 디스크 파일 합계 또는 S3 접두사 아래 객체 합계, free/total은 디스크 백엔드만(S3는 null).
       권한 `recordings_view`.
     - CI: `.github/moavi-recordings-smoke.sh`(OpenSSH 대상, ticket ssh로 녹화 생김/안 생김, 409/204, 파일 삭제, 사용량).
+12. **녹화 크기**(moavi11): Recording에 `size_bytes`(int64, 선택). 녹화 파일 전부의 저장소 크기(디스크 폴더 합계,
+    S3는 `<session>/<name>/` 아래 객체 합계). 녹화가 끝날 때 각 파일 writer가 다시 재서 저장(마지막 것이 전체 크기),
+    진행 중이면 null. 예전 행처럼 끝났는데 값이 없으면 `GET /recordings/{id}`·`GET /sessions/{id}/recordings`에서
+    처음 읽을 때 재서 저장. DB 마이그레이션 `m00089_moavi_recording_size_bytes`(nullable BIGINT).
 
 ## 새 Warpgate 버전으로 다시 빌드하기
 

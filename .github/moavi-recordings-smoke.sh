@@ -84,6 +84,8 @@ for schema in TargetRdpOptions TargetSSHOptions TargetVncOptions; do
 done
 jq -e '.paths["/recordings/{id}"].delete and .paths["/recordings-storage/usage"].get' <<<"$spec" >/dev/null \
     || fail "openapi.json lacks the recordings delete / usage operations"
+jq -e '.components.schemas.Recording.properties.size_bytes.type == "integer"' <<<"$spec" >/dev/null \
+    || fail "Recording has no size_bytes in openapi.json"
 
 # ---- two targets: record=false, and no record field (follow the global switch)
 target_json() { # name [extra options json]
@@ -161,6 +163,8 @@ for _ in $(seq 1 20); do [ "$(count)" -ge 2 ] && break; sleep 1; done
 [ "$(count)" = 2 ] || fail "the second session did not start recording: $(usage)"
 live_rec="$(all_recordings | jq -r '[.[] | select(.ended == null)][0].id')"
 [ -n "$live_rec" ] && [ "$live_rec" != null ] || fail "no in-progress recording found"
+[ "$(all_recordings | jq -r --arg id "$live_rec" '.[] | select(.id == $id) | .size_bytes')" = null ] \
+    || fail "an in-progress recording should have size_bytes null"
 r="$(api DELETE "/admin/api/recordings/$live_rec")"
 [ "$(status_of "$r")" = 409 ] || fail "deleting a live recording should be 409: $r"
 wait "$live_pid" || true
@@ -169,6 +173,12 @@ wait "$live_pid" || true
 done_rec="$(all_recordings | jq -c '[.[] | select(.id != $live)][-1]' --arg live "$live_rec")"
 rec_id="$(jq -r .id <<<"$done_rec")"
 rec_dir="$(jq -r '"\(.session_id)/\(.name)"' <<<"$done_rec")"
+size="$(jq -r .size_bytes <<<"$done_rec")"
+[ "$size" != null ] && [ "$size" -gt 0 ] || fail "an ended recording should have size_bytes > 0: $done_rec"
+[ "$(body_of "$(api GET "/admin/api/recordings/$rec_id")" | jq -r .size_bytes)" = "$size" ] \
+    || fail "GET /recordings/{id} size_bytes differs from the session listing"
+on_disk="$(docker exec "$wg" sh -c "find /data -path '*$rec_dir*' -type f -exec stat -c %s {} +" | awk '{s+=$1} END {print s+0}')"
+[ "$on_disk" = "$size" ] || fail "size_bytes $size but the files on disk take $on_disk"
 docker exec "$wg" sh -c "find /data -path '*$rec_dir*' | head -n 1" | grep -q . \
     || fail "recording files not found on the data volume before delete ($rec_dir)"
 bytes_before="$(usage | jq -r .bytes)"
@@ -194,5 +204,5 @@ jq -e '.count == 0 and .oldest == null' <<<"$u1" >/dev/null || fail "usage after
 r="$(api DELETE "/admin/api/recordings/$(cat /proc/sys/kernel/random/uuid)")"
 [ "$(status_of "$r")" = 404 ] || fail "unknown recording should be 404: $r"
 
-echo "OK: per-target record switch, delete (409 while live, 204 after), storage usage"
+echo "OK: per-target record switch, delete (409 while live, 204 after), storage usage, size_bytes"
 echo "- recordings: per-target record=false skips recording, delete 409 live / 204 ended, usage counts and disk space OK" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"

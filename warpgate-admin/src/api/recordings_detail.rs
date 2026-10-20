@@ -99,7 +99,10 @@ impl Api {
             .map_err(InternalServerError)?;
 
         match recording {
-            Some(recording) => Ok(GetRecordingResponse::Ok(Json(recording))),
+            // MOAVI: size_bytes for an ended row that does not have it yet
+            Some(recording) => Ok(GetRecordingResponse::Ok(Json(
+                admin.services().recordings.with_size(recording).await,
+            ))),
             None => Ok(GetRecordingResponse::NotFound),
         }
     }
